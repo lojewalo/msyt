@@ -10,8 +10,7 @@ clap = "2"
 failure = "0.1"
 indexmap = { version = "1", features = ["serde", "serde-1"] }
 itertools = "0.8"
-# msbt = { git = "https://github.com/jkcclemens/msbt-rs" }
-msbt = { path = "../msbt/" }
+msbt = { git = "https://github.com/jkcclemens/msbt-rs" }
 serde = "1"
 serde_derive = "1"
 serde_yaml = "0.8"
