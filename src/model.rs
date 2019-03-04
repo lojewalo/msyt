@@ -9,7 +9,7 @@ pub struct Msyt {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Content {
-  Ascii(String),
+  Text(String),
   Utf16Bytes(Vec<u16>),
   Utf8Bytes(Vec<u8>),
 }
@@ -20,7 +20,7 @@ impl Content {
 
     for content in contents {
       match *content {
-        Content::Ascii(ref s) => buf.append(&mut s.as_bytes().to_vec()),
+        Content::Text(ref s) => buf.append(&mut s.as_bytes().to_vec()),
         Content::Utf8Bytes(ref b) => buf.append(&mut b.to_vec()),
         _ => panic!("utf16 bytes in utf8 file"),
       }
@@ -34,7 +34,7 @@ impl Content {
 
     for content in contents {
       match *content {
-        Content::Ascii(ref s) => {
+        Content::Text(ref s) => {
           let mut utf16_bytes: Vec<u16> = s.encode_utf16().collect();
           buf.append(&mut utf16_bytes);
         },
