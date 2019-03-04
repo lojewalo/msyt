@@ -35,8 +35,8 @@ fn import() {
       if let Some(ref mut lbl1) = msbt.lbl1 {
         if let Some(mut label) = lbl1.labels.iter_mut().find(|x| x.name == key) {
           let new_val = match msbt.header.encoding {
-            Encoding::Utf16 => String::from_utf16(&combine_contents_utf16(&contents)).unwrap(),
-            Encoding::Utf8 => unsafe { String::from_utf8_unchecked(combine_contents_utf8(&contents)) },
+            Encoding::Utf16 => String::from_utf16(&Content::combine_utf16(&contents)).unwrap(),
+            Encoding::Utf8 => String::from_utf8(Content::combine_utf8(&contents)).unwrap(),
           };
           label.value = new_val.clone();
 
@@ -122,33 +122,36 @@ enum Content {
   Utf8Bytes(Vec<u8>),
 }
 
-fn combine_contents_utf16(contents: &[Content]) -> Vec<u16> {
-  let mut buf = Vec::new();
+impl Content {
+  fn combine_utf8(contents: &[Content]) -> Vec<u8> {
+    let mut buf = Vec::new();
 
-  for content in contents {
-    match *content {
-      Content::Ascii(ref s) => {
-        let mut utf16_bytes: Vec<u16> = s.encode_utf16().collect();
-        buf.append(&mut utf16_bytes);
-      },
-      Content::Utf16Bytes(ref b) => buf.append(&mut b.to_vec()),
-      _ => panic!("utf8 bytes in utf16 file"),
+    for content in contents {
+      match *content {
+        Content::Ascii(ref s) => buf.append(&mut s.as_bytes().to_vec()),
+        Content::Utf8Bytes(ref b) => buf.append(&mut b.to_vec()),
+        _ => panic!("utf16 bytes in utf8 file"),
+      }
     }
+
+    buf
   }
 
-  buf
-}
+  fn combine_utf16(contents: &[Content]) -> Vec<u16> {
+    let mut buf = Vec::new();
 
-fn combine_contents_utf8(contents: &[Content]) -> Vec<u8> {
-  let mut buf = Vec::new();
-
-  for content in contents {
-    match *content {
-      Content::Ascii(ref s) => buf.append(&mut s.as_bytes().to_vec()),
-      Content::Utf8Bytes(ref b) => buf.append(&mut b.to_vec()),
-      _ => panic!("utf16 bytes in utf8 file"),
+    for content in contents {
+      match *content {
+        Content::Ascii(ref s) => {
+          let mut utf16_bytes: Vec<u16> = s.encode_utf16().collect();
+          buf.append(&mut utf16_bytes);
+        },
+        Content::Utf16Bytes(ref b) => buf.append(&mut b.to_vec()),
+        _ => panic!("utf8 bytes in utf16 file"),
+      }
     }
-  }
 
-  buf
+    buf
+  }
 }
+
