@@ -96,7 +96,7 @@ fn export(matches: &ArgMatches) -> Result<()> {
           for (is_ascii, part) in &grouped {
             let bytes: Vec<u16> = part.collect();
             let content = if is_ascii {
-              Content::Ascii(String::from_utf16(&bytes)?)
+              Content::Text(String::from_utf16(&bytes)?)
             } else {
               Content::Utf16Bytes(bytes)
             };
@@ -111,7 +111,7 @@ fn export(matches: &ArgMatches) -> Result<()> {
           for (is_ascii, part) in &grouped {
             let bytes: Vec<u8> = part.cloned().collect();
             let content = if is_ascii {
-              Content::Ascii(String::from_utf8(bytes)?)
+              Content::Text(String::from_utf8(bytes)?)
             } else {
               Content::Utf8Bytes(bytes)
             };
