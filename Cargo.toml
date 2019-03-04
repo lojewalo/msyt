@@ -1,0 +1,13 @@
+[package]
+name = "msyt"
+version = "0.1.0"
+authors = ["Kyle Clemens <git@kyleclemens.com>"]
+edition = "2018"
+
+[dependencies]
+msbt = { git = "https://github.com/jkcclemens/msbt-rs" }
+serde = "1"
+serde_derive = "1"
+serde_yaml = "0.8"
+itertools = "0.8"
+indexmap = { version = "1", features = ["serde", "serde-1"] }
