@@ -1,42 +1,61 @@
+use clap::ArgMatches;
+use indexmap::IndexMap;
 use itertools::Itertools;
 use msbt::{Msbt, Encoding};
-use serde_derive::{Deserialize, Serialize};
-use indexmap::IndexMap;
 
 use std::{
   fs::File,
   io::{BufReader, BufWriter},
 };
 
+mod cli;
+mod model;
+
+use self::model::{Msyt, Content};
+
+pub type Result<T> = std::result::Result<T, failure::Error>;
+
 fn main() {
-  let sub = std::env::args().nth(1).unwrap();
-  if sub == "export" {
-    export();
-  } else if sub == "import" {
-    import();
-  } else {
-    eprintln!("first arg must be import or export");
+  std::process::exit(match inner() {
+    Ok(()) => 0,
+    Err(e) => {
+      eprintln!("error: {}", e);
+      1
+    },
+  });
+}
+
+fn inner() -> Result<()> {
+  let matches = self::cli::app().get_matches();
+
+  match matches.subcommand() {
+    ("export", Some(sub_matches)) => export(sub_matches),
+    ("import", Some(sub_matches)) => import(sub_matches),
+    _ => unreachable!("clap allowed an unspecified subcommand"),
   }
 }
 
-fn import() {
-  for path in std::env::args().skip(2) {
-    let msyt_file = File::open(&path).unwrap();
-    let msyt: Msyt = serde_yaml::from_reader(msyt_file).unwrap();
+fn import(matches: &ArgMatches) -> Result<()> {
+  for path in matches.values_of("paths").expect("required argument") {
+    let msyt_file = File::open(&path)?;
+    let msyt: Msyt = serde_yaml::from_reader(msyt_file)?;
 
-    let base_path = path.rsplitn(2, '.').nth(1).unwrap();
+    let base_path = match path.rsplitn(2, '.').nth(1) {
+      Some(b) => b,
+      None => failure::bail!("invalid path (no extension): {}", path),
+    };
 
     let msbt_path = format!("{}.msbt", base_path);
-    let msbt_file = File::open(msbt_path).unwrap();
+    let msbt_file = File::open(msbt_path)?;
 
-    let mut msbt = Msbt::from_reader(BufReader::new(msbt_file)).unwrap();
+    let mut msbt = Msbt::from_reader(BufReader::new(msbt_file))?;
 
     for (key, contents) in msyt.entries {
       if let Some(ref mut lbl1) = msbt.lbl1 {
         if let Some(mut label) = lbl1.labels.iter_mut().find(|x| x.name == key) {
           let new_val = match msbt.header.encoding {
-            Encoding::Utf16 => String::from_utf16(&Content::combine_utf16(&contents)).unwrap(),
-            Encoding::Utf8 => String::from_utf8(Content::combine_utf8(&contents)).unwrap(),
+            Encoding::Utf16 => String::from_utf16(&Content::combine_utf16(&contents))?,
+            Encoding::Utf8 => String::from_utf8(Content::combine_utf8(&contents))?,
           };
           label.value = new_val.clone();
 
@@ -47,17 +66,22 @@ fn import() {
       }
     }
 
-    let new_msbt = File::create(format!("{}.msbt-new", base_path)).unwrap();
-    msbt.write_to(BufWriter::new(new_msbt)).unwrap();
+    let new_msbt = File::create(format!("{}.msbt-new", base_path))?;
+    msbt.write_to(BufWriter::new(new_msbt))?;
   }
+
+  Ok(())
 }
 
-fn export() {
-  for path in std::env::args().skip(2) {
-    let msbt_file = File::open(&path).unwrap();
-    let msbt = Msbt::from_reader(BufReader::new(msbt_file)).unwrap();
+fn export(matches: &ArgMatches) -> Result<()> {
+  for path in matches.values_of("paths").expect("required argument") {
+    let msbt_file = File::open(&path)?;
+    let msbt = Msbt::from_reader(BufReader::new(msbt_file))?;
 
-    let lbl1 = msbt.lbl1.unwrap();
+    let lbl1 = match msbt.lbl1 {
+      Some(lbl) => lbl,
+      None => failure::bail!("Invalid MSBT file (missing LBL1): {}", path),
+    };
 
     let mut entries = IndexMap::with_capacity(lbl1.labels.len());
 
@@ -72,7 +96,7 @@ fn export() {
           for (is_ascii, part) in &grouped {
             let bytes: Vec<u16> = part.collect();
             let content = if is_ascii {
-              Content::Ascii(String::from_utf16(&bytes).unwrap())
+              Content::Ascii(String::from_utf16(&bytes)?)
             } else {
               Content::Utf16Bytes(bytes)
             };
@@ -87,7 +111,7 @@ fn export() {
           for (is_ascii, part) in &grouped {
             let bytes: Vec<u8> = part.cloned().collect();
             let content = if is_ascii {
-              Content::Ascii(unsafe { String::from_utf8_unchecked(bytes) })
+              Content::Ascii(String::from_utf8(bytes)?)
             } else {
               Content::Utf8Bytes(bytes)
             };
@@ -101,57 +125,16 @@ fn export() {
 
     let msyt = Msyt { entries };
 
-    let base = path.rsplitn(2, '.').nth(1).unwrap();
+    let base = match path.rsplitn(2, '.').nth(1) {
+      Some(b) => b,
+      None => failure::bail!("invalid path (no extension): {}", path),
+    };
     serde_yaml::to_writer(
-      BufWriter::new(File::create(format!("{}.msyt", base)).unwrap()),
+      BufWriter::new(File::create(format!("{}.msyt", base))?),
       &msyt,
-    ).unwrap();
-  }
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Msyt {
-  entries: IndexMap<String, Vec<Content>>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-enum Content {
-  Ascii(String),
-  Utf16Bytes(Vec<u16>),
-  Utf8Bytes(Vec<u8>),
-}
-
-impl Content {
-  fn combine_utf8(contents: &[Content]) -> Vec<u8> {
-    let mut buf = Vec::new();
-
-    for content in contents {
-      match *content {
-        Content::Ascii(ref s) => buf.append(&mut s.as_bytes().to_vec()),
-        Content::Utf8Bytes(ref b) => buf.append(&mut b.to_vec()),
-        _ => panic!("utf16 bytes in utf8 file"),
-      }
-    }
-
-    buf
+    )?;
   }
 
-  fn combine_utf16(contents: &[Content]) -> Vec<u16> {
-    let mut buf = Vec::new();
-
-    for content in contents {
-      match *content {
-        Content::Ascii(ref s) => {
-          let mut utf16_bytes: Vec<u16> = s.encode_utf16().collect();
-          buf.append(&mut utf16_bytes);
-        },
-        Content::Utf16Bytes(ref b) => buf.append(&mut b.to_vec()),
-        _ => panic!("utf8 bytes in utf16 file"),
-      }
-    }
-
-    buf
-  }
+  Ok(())
 }
 
