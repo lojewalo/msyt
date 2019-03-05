@@ -2,10 +2,12 @@ use clap::ArgMatches;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use msbt::{Msbt, Encoding};
+use walkdir::WalkDir;
 
 use std::{
   fs::File,
   io::{BufReader, BufWriter},
+  path::PathBuf,
 };
 
 mod cli;
@@ -36,13 +38,20 @@ fn inner() -> Result<()> {
 }
 
 fn import(matches: &ArgMatches) -> Result<()> {
-  for path in matches.values_of("paths").expect("required argument") {
+  let paths: Vec<PathBuf> = if matches.is_present("dir_mode") {
+    find_files(matches.values_of("paths").expect("required argument"), "msyt")?
+  } else {
+    matches.values_of("paths").expect("required argument").map(PathBuf::from).collect()
+  };
+
+  for path in paths {
     let msyt_file = File::open(&path)?;
     let msyt: Msyt = serde_yaml::from_reader(msyt_file)?;
 
-    let base_path = match path.rsplitn(2, '.').nth(1) {
+    let lossy_path = path.to_string_lossy();
+    let base_path = match lossy_path.rsplitn(2, '.').nth(1) {
       Some(b) => b,
-      None => failure::bail!("invalid path (no extension): {}", path),
+      None => failure::bail!("invalid path (no extension): {}", lossy_path),
     };
 
     let msbt_path = format!("{}.msbt", base_path);
@@ -74,13 +83,19 @@ fn import(matches: &ArgMatches) -> Result<()> {
 }
 
 fn export(matches: &ArgMatches) -> Result<()> {
-  for path in matches.values_of("paths").expect("required argument") {
+  let paths: Vec<PathBuf> = if matches.is_present("dir_mode") {
+    find_files(matches.values_of("paths").expect("required argument"), "msbt")?
+  } else {
+    matches.values_of("paths").expect("required argument").map(PathBuf::from).collect()
+  };
+
+  for path in paths {
     let msbt_file = File::open(&path)?;
     let msbt = Msbt::from_reader(BufReader::new(msbt_file))?;
 
     let lbl1 = match msbt.lbl1 {
       Some(lbl) => lbl,
-      None => failure::bail!("Invalid MSBT file (missing LBL1): {}", path),
+      None => failure::bail!("Invalid MSBT file (missing LBL1): {}", path.to_string_lossy()),
     };
 
     let mut entries = IndexMap::with_capacity(lbl1.labels.len());
@@ -125,9 +140,10 @@ fn export(matches: &ArgMatches) -> Result<()> {
 
     let msyt = Msyt { entries };
 
-    let base = match path.rsplitn(2, '.').nth(1) {
+    let lossy_path = path.to_string_lossy();
+    let base = match lossy_path.rsplitn(2, '.').nth(1) {
       Some(b) => b,
-      None => failure::bail!("invalid path (no extension): {}", path),
+      None => failure::bail!("invalid path (no extension): {}", path.to_string_lossy()),
     };
     serde_yaml::to_writer(
       BufWriter::new(File::create(format!("{}.msyt", base))?),
@@ -138,3 +154,12 @@ fn export(matches: &ArgMatches) -> Result<()> {
   Ok(())
 }
 
+fn find_files<'a>(paths: impl Iterator<Item = &'a str>, ext: &str) -> Result<Vec<PathBuf>> {
+  paths
+    .flat_map(|p| WalkDir::new(p)
+      .into_iter()
+      .map(|e| e.map(walkdir::DirEntry::into_path))
+      .filter(|p| p.as_ref().map(|p| p.is_file() && p.extension().and_then(std::ffi::OsStr::to_str) == Some(ext)).unwrap_or(false)))
+      .map(|p| p.map_err(Into::into))
+    .collect()
+}
