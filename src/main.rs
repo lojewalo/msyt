@@ -2,9 +2,11 @@ use clap::ArgMatches;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use msbt::{Msbt, Encoding};
+use unic_ucd_category::GeneralCategory;
 use walkdir::WalkDir;
 
 use std::{
+  convert::TryFrom,
   fs::File,
   io::{BufReader, BufWriter},
   path::PathBuf,
@@ -107,9 +109,11 @@ fn export(matches: &ArgMatches) -> Result<()> {
         Encoding::Utf16 => {
           let grouped = label.value
             .encode_utf16()
-            .group_by(|&x| x < 255 && (x as u8).is_ascii_alphanumeric() || (x as u8).is_ascii_punctuation() || (x as u8).is_ascii_whitespace());
+            .map(|x| char::try_from(u32::from(x)).unwrap())
+            .map(|c| (c, GeneralCategory::of(c)))
+            .group_by(|(ch, c)| c.is_letter() || c.is_number() || c.is_symbol() || c.is_punctuation() || c.is_separator() || *ch == '\n');
           for (is_ascii, part) in &grouped {
-            let bytes: Vec<u16> = part.collect();
+            let bytes: Vec<u16> = part.map(|(x, _)| x as u16).collect();
             let content = if is_ascii {
               Content::Text(String::from_utf16(&bytes)?)
             } else {
@@ -122,9 +126,10 @@ fn export(matches: &ArgMatches) -> Result<()> {
           let grouped = label.value
             .as_bytes()
             .iter()
-            .group_by(|&x| x.is_ascii_alphanumeric() || x.is_ascii_punctuation() || x.is_ascii_whitespace());
+            .map(|&x| (x, GeneralCategory::of(x as char)))
+            .group_by(|(ch, c)| c.is_letter() || c.is_number() || c.is_symbol() || c.is_punctuation() || c.is_separator() || *ch == 0x0a);
           for (is_ascii, part) in &grouped {
-            let bytes: Vec<u8> = part.cloned().collect();
+            let bytes: Vec<u8> = part.map(|(b, _)| b).collect();
             let content = if is_ascii {
               Content::Text(String::from_utf8(bytes)?)
             } else {
