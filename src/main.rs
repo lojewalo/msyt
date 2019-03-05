@@ -49,7 +49,7 @@ fn import(matches: &ArgMatches) -> Result<()> {
     .into_par_iter()
     .map(|path| {
       let msyt_file = File::open(&path)?;
-      let msyt: Msyt = serde_yaml::from_reader(msyt_file)?;
+      let msyt: Msyt = serde_yaml::from_reader(BufReader::new(msyt_file))?;
 
       let lossy_path = path.to_string_lossy();
       let base_path = match lossy_path.rsplitn(2, '.').nth(1) {
