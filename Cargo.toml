@@ -15,3 +15,7 @@ serde = "1"
 serde_derive = "1"
 serde_yaml = "0.8"
 walkdir = "2"
+
+[[bin]]
+name = "botw_test"
+path = "bin/botw_test.rs"
