@@ -1,3 +1,5 @@
+use crate::Result;
+
 use indexmap::IndexMap;
 use serde_derive::{Deserialize, Serialize};
 
@@ -15,21 +17,21 @@ pub enum Content {
 }
 
 impl Content {
-  pub fn combine_utf8(contents: &[Content]) -> Vec<u8> {
+  pub fn combine_utf8(contents: &[Content]) -> Result<Vec<u8>> {
     let mut buf = Vec::new();
 
     for content in contents {
       match *content {
         Content::Text(ref s) => buf.append(&mut s.as_bytes().to_vec()),
         Content::Utf8Bytes(ref b) => buf.append(&mut b.to_vec()),
-        _ => panic!("utf16 bytes in utf8 file"),
+        _ => failure::bail!("utf16 bytes in utf8 file"),
       }
     }
 
-    buf
+    Ok(buf)
   }
 
-  pub fn combine_utf16(contents: &[Content]) -> Vec<u16> {
+  pub fn combine_utf16(contents: &[Content]) -> Result<Vec<u16>> {
     let mut buf = Vec::new();
 
     for content in contents {
@@ -39,11 +41,11 @@ impl Content {
           buf.append(&mut utf16_bytes);
         },
         Content::Utf16Bytes(ref b) => buf.append(&mut b.to_vec()),
-        _ => panic!("utf8 bytes in utf16 file"),
+        _ => failure::bail!("utf8 bytes in utf16 file"),
       }
     }
 
-    buf
+    Ok(buf)
   }
 }
 

@@ -66,8 +66,8 @@ fn import(matches: &ArgMatches) -> Result<()> {
         if let Some(ref mut lbl1) = msbt.lbl1 {
           if let Some(mut label) = lbl1.labels.iter_mut().find(|x| x.name == key) {
             let new_val = match msbt.header.encoding {
-              Encoding::Utf16 => String::from_utf16(&Content::combine_utf16(&contents))?,
-              Encoding::Utf8 => String::from_utf8(Content::combine_utf8(&contents))?,
+              Encoding::Utf16 => String::from_utf16(&Content::combine_utf16(&contents)?)?,
+              Encoding::Utf8 => String::from_utf8(Content::combine_utf8(&contents)?)?,
             };
             label.value = new_val.clone();
 
