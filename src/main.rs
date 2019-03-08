@@ -64,17 +64,16 @@ fn import(matches: &ArgMatches) -> Result<()> {
 
       let mut msbt = Msbt::from_reader(BufReader::new(msbt_file))?;
 
+      let encoding = msbt.header().encoding();
       for (key, contents) in msyt.entries {
-        if let Some(ref mut lbl1) = msbt.lbl1 {
-          if let Some(mut label) = lbl1.labels.iter_mut().find(|x| x.name == key) {
-            let new_val = match msbt.header.encoding {
+        if let Some(ref mut lbl1) = msbt.lbl1_mut() {
+          if let Some(label) = lbl1.labels_mut().iter_mut().find(|x| x.name() == key) {
+            let new_val = match encoding {
               Encoding::Utf16 => String::from_utf16(&Content::combine_utf16(&contents)?)?,
               Encoding::Utf8 => String::from_utf8(Content::combine_utf8(&contents)?)?,
             };
-            label.value = new_val.clone();
-
-            if let Some(ref mut txt2) = msbt.txt2 {
-              txt2.strings[label.index as usize] = new_val;
+            if let Err(()) = label.set_value(new_val.as_str()) {
+              failure::bail!("could not set string at index {}", label.index());
             }
           }
         }
@@ -101,19 +100,21 @@ fn export(matches: &ArgMatches) -> Result<()> {
       let msbt_file = File::open(&path)?;
       let msbt = Msbt::from_reader(BufReader::new(msbt_file))?;
 
-      let lbl1 = match msbt.lbl1 {
+      let lbl1 = match msbt.lbl1() {
         Some(lbl) => lbl,
         None => failure::bail!("Invalid MSBT file (missing LBL1): {}", path.to_string_lossy()),
       };
 
-      let mut entries = IndexMap::with_capacity(lbl1.labels.len());
+      let mut entries = IndexMap::with_capacity(lbl1.labels().len());
 
-      for label in lbl1.labels {
+      for label in lbl1.labels() {
         let mut all_content = Vec::new();
 
-        match msbt.header.encoding {
+        let value = label.value()
+          .ok_or_else(|| failure::format_err!("invalid msbt: missing string for label {}", label.name()))?;
+        match msbt.header().encoding() {
           Encoding::Utf16 => {
-            let grouped = label.value
+            let grouped = value
               .encode_utf16()
               .map(|x| char::try_from(u32::from(x)).unwrap())
               .map(|c| (c, GeneralCategory::of(c)))
@@ -129,7 +130,7 @@ fn export(matches: &ArgMatches) -> Result<()> {
             }
           },
           Encoding::Utf8 => {
-            let grouped = label.value
+            let grouped = value
               .as_bytes()
               .iter()
               .map(|&x| (x, GeneralCategory::of(x as char)))
@@ -146,7 +147,7 @@ fn export(matches: &ArgMatches) -> Result<()> {
           }
         }
 
-        entries.insert(label.name, all_content);
+        entries.insert(label.name().to_string(), all_content);
       }
 
       let msyt = Msyt { entries };
