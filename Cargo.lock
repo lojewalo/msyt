@@ -200,7 +200,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "msbt"
 version = "0.1.0"
-source = "git+https://github.com/jkcclemens/msbt-rs?branch=refactor#6facfeb442ecd728412ca3564d9cd81870a35822"
+source = "git+https://github.com/jkcclemens/msbt-rs?branch=refactor#e4a275cdd5daf64804883996dc5d3040e0c643b1"
 dependencies = [
  "byteordered 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
