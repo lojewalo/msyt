@@ -10,6 +10,7 @@ use std::{
   path::PathBuf,
 };
 
+mod botw;
 mod cli;
 mod model;
 
@@ -73,10 +74,6 @@ fn import(matches: &ArgMatches) -> Result<()> {
           }
         }
       }
-    }
-
-    if let Some(ref mut txt2) = msbt.txt2 {
-      txt2.update_section();
     }
 
     let new_msbt = File::create(format!("{}.msbt-new", base_path))?;

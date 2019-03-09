@@ -6,6 +6,7 @@ description = "Import and export from MSBT files to MSYT (YAML) files."
 edition = "2018"
 
 [dependencies]
+byteordered = "0.4"
 clap = "2"
 failure = "0.1"
 indexmap = { version = "1", features = ["serde", "serde-1"] }
