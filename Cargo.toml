@@ -6,14 +6,13 @@ description = "Import and export from MSBT files to MSYT (YAML) files."
 edition = "2018"
 
 [dependencies]
+byteordered = "0.4"
 clap = "2"
 failure = "0.1"
 indexmap = { version = "1", features = ["serde", "serde-1"] }
-itertools = "0.8"
 msbt = { git = "https://github.com/jkcclemens/msbt-rs", branch = "refactor" }
 rayon = "1"
 serde = "1"
 serde_derive = "1"
 serde_yaml = "0.8"
-unic-ucd-category = "0.9"
 walkdir = "2"
