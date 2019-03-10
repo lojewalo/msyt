@@ -1,6 +1,5 @@
 use clap::ArgMatches;
 use indexmap::IndexMap;
-use itertools::Itertools;
 use msbt::{Msbt, Encoding};
 use walkdir::WalkDir;
 
@@ -106,34 +105,14 @@ fn export(matches: &ArgMatches) -> Result<()> {
 
       match msbt.header.encoding {
         Encoding::Utf16 => {
-          let grouped = label.value
-            .encode_utf16()
-            .group_by(|&x| x < 255 && (x as u8).is_ascii_alphanumeric() || (x as u8).is_ascii_punctuation() || (x as u8).is_ascii_whitespace());
-          for (is_ascii, part) in &grouped {
-            let bytes: Vec<u16> = part.collect();
-            let content = if is_ascii {
-              Content::Text(String::from_utf16(&bytes)?)
-            } else {
-              Content::Utf16Bytes(bytes)
-            };
-            all_content.push(content);
-          }
+          // FIXME: this should pass encoding for certain parts
+          let mut parts = self::botw::parse_controls(msbt.header.endianness, &label.value_raw)?;
+          all_content.append(&mut parts);
         },
         Encoding::Utf8 => {
-          let grouped = label.value
-            .as_bytes()
-            .iter()
-            .group_by(|&x| x.is_ascii_alphanumeric() || x.is_ascii_punctuation() || x.is_ascii_whitespace());
-          for (is_ascii, part) in &grouped {
-            let bytes: Vec<u8> = part.cloned().collect();
-            let content = if is_ascii {
-              Content::Text(String::from_utf8(bytes)?)
-            } else {
-              Content::Utf8Bytes(bytes)
-            };
-            all_content.push(content);
-          }
-        }
+          let mut parts = self::botw::parse_controls(msbt.header.endianness, &label.value_raw)?;
+          all_content.append(&mut parts);
+        },
       }
 
       entries.insert(label.name, all_content);
