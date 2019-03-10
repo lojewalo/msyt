@@ -1,6 +1,11 @@
-use crate::Result;
+use crate::{
+  Result,
+  botw::MainControl,
+};
 
 use byteordered::Endian;
+
+use failure::ResultExt;
 
 use msbt::Header;
 
@@ -14,13 +19,17 @@ pub struct Control3 {
   pub field_2: Vec<u8>,
 }
 
-impl Control3 {
-  pub fn parse(header: &Header, buf: &[u8]) -> Result<(usize, Control3)> {
+impl MainControl for Control3 {
+  fn marker(&self) -> u16 {
+    3
+  }
+
+  fn parse(header: &Header, buf: &[u8]) -> Result<(usize, Control3)> {
     let mut c = Cursor::new(buf);
-    let field_1 = header.endianness().read_u16(&mut c)?;
-    let field_2_len = header.endianness().read_u16(&mut c)?;
+    let field_1 = header.endianness().read_u16(&mut c).with_context(|_| "could not read field_1")?;
+    let field_2_len = header.endianness().read_u16(&mut c).with_context(|_| "could not read field_2 length")?;
     let mut field_2 = vec![0; field_2_len as usize];
-    c.read_exact(&mut field_2)?;
+    c.read_exact(&mut field_2).with_context(|_| "could not read field_2")?;
 
     Ok((
       c.position() as usize,
@@ -31,10 +40,12 @@ impl Control3 {
     ))
   }
 
-  pub fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
-    header.endianness().write_u16(&mut writer, self.field_1)?;
-    header.endianness().write_u16(&mut writer, self.field_2.len() as u16)?;
-    writer.write_all(&self.field_2)?;
+  fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+    header.endianness().write_u16(&mut writer, self.field_1)
+      .with_context(|_| "could not write field_1")?;
+    header.endianness().write_u16(&mut writer, self.field_2.len() as u16)
+      .with_context(|_| "could not write field_2 length")?;
+    writer.write_all(&self.field_2).with_context(|_| "could not write field_2")?;
 
     Ok(())
   }

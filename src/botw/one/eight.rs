@@ -1,6 +1,11 @@
-use crate::Result;
+use crate::{
+  Result,
+  botw::SubControl,
+};
 
 use byteordered::Endian;
+
+use failure::ResultExt;
 
 use msbt::Header;
 
@@ -17,11 +22,15 @@ pub struct Control1_8 {
   field_2: [u8; 4],
 }
 
-impl Control1_8 {
-  pub(crate) fn parse(header: &Header, mut reader: &mut Cursor<&[u8]>) -> Result<Self> {
-    let len = header.endianness().read_u16(&mut reader)?;
+impl SubControl for Control1_8 {
+  fn marker(&self) -> u16 {
+    8
+  }
+
+  fn parse(header: &Header, mut reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    let len = header.endianness().read_u16(&mut reader).with_context(|_| "could not read length")?;
     let mut buf = vec![0; len as usize - 4];
-    reader.read_exact(&mut buf)?;
+    reader.read_exact(&mut buf).with_context(|_| "could not read bytes")?;
 
     let mut unknown_count = 0;
     for (i, unknown) in buf.chunks(4).map(|x| x == &UNKNOWN[..]).enumerate() {
@@ -40,10 +49,11 @@ impl Control1_8 {
     let field_1 = buf[unknown_count * 4..]
       .chunks(2)
       .map(|bs| header.endianness().read_u16(bs).map_err(Into::into))
-      .collect::<Result<_>>()?;
+      .collect::<Result<_>>()
+      .with_context(|_| "could not read u16s from field_1 bytes")?;
 
     let mut field_2 = [0; 4];
-    reader.read_exact(&mut field_2[..])?;
+    reader.read_exact(&mut field_2[..]).with_context(|_| "could not read field_2")?;
 
     Ok(Control1_8 {
       unknown_1,
@@ -52,21 +62,21 @@ impl Control1_8 {
     })
   }
 
-  pub(crate) fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+  fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
     let len = self.unknown_1.len() * UNKNOWN.len()
       + self.field_1.len() * 2
       + self.field_2.len();
-    header.endianness().write_u16(&mut writer, len as u16)?;
+    header.endianness().write_u16(&mut writer, len as u16).with_context(|_| "could not write length")?;
 
     for unknown in &self.unknown_1 {
-      writer.write_all(&unknown[..])?;
+      writer.write_all(&unknown[..]).with_context(|_| "could not write unknown bytes")?;
     }
 
     for &byte in &self.field_1 {
-      header.endianness().write_u16(&mut writer, byte)?;
+      header.endianness().write_u16(&mut writer, byte).with_context(|_| "could not write field_1 byte")?;
     }
 
-    writer.write_all(&self.field_2[..])?;
+    writer.write_all(&self.field_2[..]).with_context(|_| "could not write field_2")?;
 
     Ok(())
   }

@@ -1,6 +1,11 @@
-use crate::Result;
+use crate::{
+  Result,
+  botw::SubControl,
+};
 
 use byteordered::Endian;
+
+use failure::ResultExt;
 
 use msbt::Header;
 
@@ -13,15 +18,19 @@ pub struct Control1_2 {
   field_1: u16,
 }
 
-impl Control1_2 {
-  pub(crate) fn parse(header: &Header, mut reader: &mut Cursor<&[u8]>) -> Result<Self> {
+impl SubControl for Control1_2 {
+  fn marker(&self) -> u16 {
+    2
+  }
+
+  fn parse(header: &Header, mut reader: &mut Cursor<&[u8]>) -> Result<Self> {
     Ok(Control1_2 {
-      field_1: header.endianness().read_u16(&mut reader)?,
+      field_1: header.endianness().read_u16(&mut reader).with_context(|_| "could not read field_1")?,
     })
   }
 
-  pub(crate) fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
-    header.endianness().write_u16(&mut writer, self.field_1)?;
+  fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+    header.endianness().write_u16(&mut writer, self.field_1).with_context(|_| "could not write field_1")?;
 
     Ok(())
   }

@@ -1,6 +1,11 @@
-use crate::Result;
+use crate::{
+  Result,
+  botw::SubControl,
+};
 
 use byteordered::Endian;
+
+use failure::ResultExt;
 
 use msbt::Header;
 
@@ -16,13 +21,17 @@ pub struct Control1_4 {
   field_4: [u8; 2],
 }
 
-impl Control1_4 {
-  pub(crate) fn parse(header: &Header, mut reader: &mut Cursor<&[u8]>) -> Result<Self> {
+impl SubControl for Control1_4 {
+  fn marker(&self) -> u16 {
+    4
+  }
+
+  fn parse(header: &Header, mut reader: &mut Cursor<&[u8]>) -> Result<Self> {
     let mut field_4 = [0; 2];
-    let field_1 = header.endianness().read_u16(&mut reader)?;
-    let field_2 = header.endianness().read_u16(&mut reader)?;
-    let field_3 = header.endianness().read_u16(&mut reader)?;
-    reader.read_exact(&mut field_4[..])?;
+    let field_1 = header.endianness().read_u16(&mut reader).with_context(|_| "could not read field_1")?;
+    let field_2 = header.endianness().read_u16(&mut reader).with_context(|_| "could not read field_2")?;
+    let field_3 = header.endianness().read_u16(&mut reader).with_context(|_| "could not read field_3")?;
+    reader.read_exact(&mut field_4[..]).with_context(|_| "could not read field_4")?;
 
     Ok(Control1_4 {
       field_1,
@@ -32,11 +41,11 @@ impl Control1_4 {
     })
   }
 
-  pub(crate) fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
-    header.endianness().write_u16(&mut writer, self.field_1)?;
-    header.endianness().write_u16(&mut writer, self.field_2)?;
-    header.endianness().write_u16(&mut writer, self.field_3)?;
-    writer.write_all(&self.field_4[..])?;
+  fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+    header.endianness().write_u16(&mut writer, self.field_1).with_context(|_| "could not write field_1")?;
+    header.endianness().write_u16(&mut writer, self.field_2).with_context(|_| "could not write field_2")?;
+    header.endianness().write_u16(&mut writer, self.field_3).with_context(|_| "could not write field_3")?;
+    writer.write_all(&self.field_4[..]).with_context(|_| "could not write field_4")?;
 
     Ok(())
   }
