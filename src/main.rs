@@ -1,4 +1,5 @@
 use clap::ArgMatches;
+use failure::Fail;
 use indexmap::IndexMap;
 use msbt::Msbt;
 use rayon::prelude::*;
@@ -22,7 +23,13 @@ fn main() {
   std::process::exit(match inner() {
     Ok(()) => 0,
     Err(e) => {
-      eprintln!("error: {}", e);
+      eprintln!("an error occurred - see below for details");
+      eprintln!();
+      eprintln!("{}", e);
+      for (indent, err) in e.iter_causes().enumerate() {
+        let indent_str: String = std::iter::repeat("  ").take(indent + 1).collect();
+        eprintln!("{}{}", indent_str, err);
+      }
       1
     },
   });
@@ -96,7 +103,7 @@ fn export(matches: &ArgMatches) -> Result<()> {
 
       let lbl1 = match msbt.lbl1() {
         Some(lbl) => lbl,
-        None => failure::bail!("Invalid MSBT file (missing LBL1): {}", path.to_string_lossy()),
+        None => failure::bail!("invalid msbt: missing lbl1: {}", path.to_string_lossy()),
       };
 
       let mut entries = IndexMap::with_capacity(lbl1.labels().len());
@@ -105,8 +112,13 @@ fn export(matches: &ArgMatches) -> Result<()> {
         let mut all_content = Vec::new();
 
         let raw_value = label.value_raw()
-          .ok_or_else(|| failure::format_err!("invalid msbt: missing string for label {}", label.name()))?;
-        let mut parts = self::botw::parse_controls(msbt.header(), raw_value)?;
+          .ok_or_else(|| failure::format_err!(
+            "invalid msbt at {}: missing string for label {}",
+            path.to_string_lossy(),
+            label.name(),
+          ))?;
+        let mut parts = self::botw::parse_controls(msbt.header(), raw_value)
+          .map_err(|e| e.context(format!("could not parse control sequences in {}", path.to_string_lossy())))?;
         all_content.append(&mut parts);
         entries.insert(label.name().to_string(), all_content);
       }
@@ -121,7 +133,7 @@ fn export(matches: &ArgMatches) -> Result<()> {
       serde_yaml::to_writer(
         BufWriter::new(File::create(format!("{}.msyt", base))?),
         &msyt,
-      )?;
+      ).map_err(|e| e.context("could not write yaml to file"))?;
 
       Ok(())
     })
