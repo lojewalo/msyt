@@ -1,6 +1,6 @@
 use clap::ArgMatches;
 use indexmap::IndexMap;
-use msbt::{Msbt, Encoding};
+use msbt::Msbt;
 use rayon::prelude::*;
 use walkdir::WalkDir;
 
@@ -62,16 +62,12 @@ fn import(matches: &ArgMatches) -> Result<()> {
 
       let mut msbt = Msbt::from_reader(BufReader::new(msbt_file))?;
 
-      let encoding = msbt.header().encoding();
       for (key, contents) in msyt.entries {
+        let new_val = Content::write_all(msbt.header(), &contents)?;
         if let Some(ref mut lbl1) = msbt.lbl1_mut() {
           if let Some(label) = lbl1.labels_mut().iter_mut().find(|x| x.name() == key) {
-            let new_val = match encoding {
-              Encoding::Utf16 => String::from_utf16(&Content::combine_utf16(&contents))?,
-              Encoding::Utf8 => String::from_utf8(Content::combine_utf8(&contents))?,
-            };
-            if let Err(()) = label.set_value(new_val.as_str()) {
-              failure::bail!("could not set string at index {}", label.index());
+            if let Err(()) = label.set_value_raw(new_val) {
+              failure::bail!("could not set raw string at index {}", label.index());
             }
           }
         }
@@ -110,8 +106,7 @@ fn export(matches: &ArgMatches) -> Result<()> {
 
         let raw_value = label.value_raw()
           .ok_or_else(|| failure::format_err!("invalid msbt: missing string for label {}", label.name()))?;
-        // FIXME: this should pass the encoding because certain parts need it
-        let mut parts = self::botw::parse_controls(msbt.header().endianness(), raw_value)?;
+        let mut parts = self::botw::parse_controls(msbt.header(), raw_value)?;
         all_content.append(&mut parts);
         entries.insert(label.name().to_string(), all_content);
       }

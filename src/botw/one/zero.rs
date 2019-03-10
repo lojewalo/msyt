@@ -1,10 +1,12 @@
 use crate::Result;
 
-use byteordered::{Endianness, Endian};
+use byteordered::Endian;
+
+use msbt::Header;
 
 use serde_derive::{Deserialize, Serialize};
 
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Control1_0 {
@@ -13,10 +15,17 @@ pub struct Control1_0 {
 }
 
 impl Control1_0 {
-  pub(crate) fn parse(endianness: Endianness, mut reader: &mut Cursor<&[u8]>) -> Result<Self> {
+  pub(crate) fn parse(header: &Header, mut reader: &mut Cursor<&[u8]>) -> Result<Self> {
     Ok(Control1_0 {
-      field_1: endianness.read_u16(&mut reader)?,
-      field_2: endianness.read_u32(&mut reader)?,
+      field_1: header.endianness().read_u16(&mut reader)?,
+      field_2: header.endianness().read_u32(&mut reader)?,
     })
+  }
+
+  pub(crate) fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+    header.endianness().write_u16(&mut writer, self.field_1)?;
+    header.endianness().write_u32(&mut writer, self.field_2)?;
+
+    Ok(())
   }
 }
