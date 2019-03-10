@@ -43,6 +43,10 @@ impl Content {
       }
     }
 
+    // add \u0000
+    buf.push(0);
+    buf.push(0);
+
     Ok(buf)
   }
 }
