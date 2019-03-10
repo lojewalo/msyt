@@ -1,18 +1,16 @@
 use clap::ArgMatches;
 use indexmap::IndexMap;
-use itertools::Itertools;
 use msbt::{Msbt, Encoding};
 use rayon::prelude::*;
-use unic_ucd_category::GeneralCategory;
 use walkdir::WalkDir;
 
 use std::{
-  convert::TryFrom,
   fs::File,
   io::{BufReader, BufWriter},
   path::PathBuf,
 };
 
+mod botw;
 mod cli;
 mod model;
 
@@ -69,8 +67,8 @@ fn import(matches: &ArgMatches) -> Result<()> {
         if let Some(ref mut lbl1) = msbt.lbl1_mut() {
           if let Some(label) = lbl1.labels_mut().iter_mut().find(|x| x.name() == key) {
             let new_val = match encoding {
-              Encoding::Utf16 => String::from_utf16(&Content::combine_utf16(&contents)?)?,
-              Encoding::Utf8 => String::from_utf8(Content::combine_utf8(&contents)?)?,
+              Encoding::Utf16 => String::from_utf16(&Content::combine_utf16(&contents))?,
+              Encoding::Utf8 => String::from_utf8(Content::combine_utf8(&contents))?,
             };
             if let Err(()) = label.set_value(new_val.as_str()) {
               failure::bail!("could not set string at index {}", label.index());
@@ -110,43 +108,11 @@ fn export(matches: &ArgMatches) -> Result<()> {
       for label in lbl1.labels() {
         let mut all_content = Vec::new();
 
-        let value = label.value()
+        let raw_value = label.value_raw()
           .ok_or_else(|| failure::format_err!("invalid msbt: missing string for label {}", label.name()))?;
-        match msbt.header().encoding() {
-          Encoding::Utf16 => {
-            let grouped = value
-              .encode_utf16()
-              .map(|x| char::try_from(u32::from(x)).unwrap())
-              .map(|c| (c, GeneralCategory::of(c)))
-              .group_by(|(ch, c)| c.is_letter() || c.is_number() || c.is_symbol() || c.is_punctuation() || c.is_separator() || *ch == '\n');
-            for (is_ascii, part) in &grouped {
-              let bytes: Vec<u16> = part.map(|(x, _)| x as u16).collect();
-              let content = if is_ascii {
-                Content::Text(String::from_utf16(&bytes)?)
-              } else {
-                Content::Utf16Bytes(bytes)
-              };
-              all_content.push(content);
-            }
-          },
-          Encoding::Utf8 => {
-            let grouped = value
-              .as_bytes()
-              .iter()
-              .map(|&x| (x, GeneralCategory::of(x as char)))
-              .group_by(|(ch, c)| c.is_letter() || c.is_number() || c.is_symbol() || c.is_punctuation() || c.is_separator() || *ch == 0x0a);
-            for (is_ascii, part) in &grouped {
-              let bytes: Vec<u8> = part.map(|(b, _)| b).collect();
-              let content = if is_ascii {
-                Content::Text(String::from_utf8(bytes)?)
-              } else {
-                Content::Utf8Bytes(bytes)
-              };
-              all_content.push(content);
-            }
-          }
-        }
-
+        // FIXME: this should pass the encoding because certain parts need it
+        let mut parts = self::botw::parse_controls(msbt.header().endianness(), raw_value)?;
+        all_content.append(&mut parts);
         entries.insert(label.name().to_string(), all_content);
       }
 
