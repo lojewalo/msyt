@@ -84,8 +84,15 @@ pub fn parse_controls(header: &Header, s: &[u8]) -> Result<Vec<Content>> {
         .with_context(|_| "could not read bytes")
         .map_err(Into::into))
       .collect::<Result<_>>()?;
-    let string = String::from_utf16(&bytes).with_context(|_| "could not parse utf-16 string")?;
-    parts.push(Content::Text(string));
+    let from = if bytes[bytes.len() - 1] == 0 {
+      &bytes[..bytes.len() - 1]
+    } else {
+      &bytes
+    };
+    let string = String::from_utf16(&from).with_context(|_| "could not parse utf-16 string")?;
+    if !string.is_empty() {
+      parts.push(Content::Text(string));
+    }
   }
 
   Ok(parts)
