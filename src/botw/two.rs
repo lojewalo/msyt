@@ -1,10 +1,12 @@
 use crate::Result;
 
-use byteordered::{Endianness, Endian};
+use byteordered::Endian;
+
+use msbt::Header;
 
 use serde_derive::{Deserialize, Serialize};
 
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 
 mod one_field;
 mod variable;
@@ -36,27 +38,27 @@ pub enum Control2 {
 }
 
 impl Control2 {
-  pub fn parse(endianness: Endianness, buf: &[u8]) -> Result<(usize, Self)> {
+  pub fn parse(header: &Header, buf: &[u8]) -> Result<(usize, Self)> {
     let mut c = Cursor::new(buf);
 
-    let kind = endianness.read_u16(&mut c)?;
+    let kind = header.endianness().read_u16(&mut c)?;
     let control = match kind {
-      1 => Control2::Type1(Control2Variable::parse(endianness, &mut c)?),
-      2 => Control2::Type2(Control2Variable::parse(endianness, &mut c)?),
-      3 => Control2::Type3(Control2OneField::parse(endianness, &mut c)?),
-      4 => Control2::Type4(Control2OneField::parse(endianness, &mut c)?),
-      7 => Control2::Type7(Control2OneField::parse(endianness, &mut c)?),
-      8 => Control2::Type8(Control2OneField::parse(endianness, &mut c)?),
-      9 => Control2::Type9(Control2Variable::parse(endianness, &mut c)?),
-      10 => Control2::Type10(Control2OneField::parse(endianness, &mut c)?),
-      11 => Control2::Type11(Control2Variable::parse(endianness, &mut c)?),
-      13 => Control2::Type13(Control2OneField::parse(endianness, &mut c)?),
-      14 => Control2::Type14(Control2Variable::parse(endianness, &mut c)?),
-      15 => Control2::Type15(Control2Variable::parse(endianness, &mut c)?),
-      16 => Control2::Type16(Control2Variable::parse(endianness, &mut c)?),
-      17 => Control2::Type17(Control2Variable::parse(endianness, &mut c)?),
-      18 => Control2::Type18(Control2Variable::parse(endianness, &mut c)?),
-      19 => Control2::Type19(Control2Variable::parse(endianness, &mut c)?),
+      1 => Control2::Type1(Control2Variable::parse(header, &mut c)?),
+      2 => Control2::Type2(Control2Variable::parse(header, &mut c)?),
+      3 => Control2::Type3(Control2OneField::parse(header, &mut c)?),
+      4 => Control2::Type4(Control2OneField::parse(header, &mut c)?),
+      7 => Control2::Type7(Control2OneField::parse(header, &mut c)?),
+      8 => Control2::Type8(Control2OneField::parse(header, &mut c)?),
+      9 => Control2::Type9(Control2Variable::parse(header, &mut c)?),
+      10 => Control2::Type10(Control2OneField::parse(header, &mut c)?),
+      11 => Control2::Type11(Control2Variable::parse(header, &mut c)?),
+      13 => Control2::Type13(Control2OneField::parse(header, &mut c)?),
+      14 => Control2::Type14(Control2Variable::parse(header, &mut c)?),
+      15 => Control2::Type15(Control2Variable::parse(header, &mut c)?),
+      16 => Control2::Type16(Control2Variable::parse(header, &mut c)?),
+      17 => Control2::Type17(Control2Variable::parse(header, &mut c)?),
+      18 => Control2::Type18(Control2Variable::parse(header, &mut c)?),
+      19 => Control2::Type19(Control2Variable::parse(header, &mut c)?),
       x => failure::bail!("unknown control 2 type: {}", x),
     };
 
@@ -64,5 +66,74 @@ impl Control2 {
       c.position() as usize,
       control,
     ))
+  }
+
+  pub fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+    match *self {
+      Control2::Type1(ref c) => {
+        header.endianness().write_u16(&mut writer, 1)?;
+        c.write(header, &mut writer)
+      },
+      Control2::Type2(ref c) => {
+        header.endianness().write_u16(&mut writer, 2)?;
+        c.write(header, &mut writer)
+      },
+      Control2::Type3(ref c) => {
+        header.endianness().write_u16(&mut writer, 3)?;
+        c.write(header, &mut writer)
+      },
+      Control2::Type4(ref c) => {
+        header.endianness().write_u16(&mut writer, 4)?;
+        c.write(header, &mut writer)
+      },
+      Control2::Type7(ref c) => {
+        header.endianness().write_u16(&mut writer, 7)?;
+        c.write(header, &mut writer)
+      },
+      Control2::Type8(ref c) => {
+        header.endianness().write_u16(&mut writer, 8)?;
+        c.write(header, &mut writer)
+      },
+      Control2::Type9(ref c) => {
+        header.endianness().write_u16(&mut writer, 9)?;
+        c.write(header, &mut writer)
+      },
+      Control2::Type10(ref c) => {
+        header.endianness().write_u16(&mut writer, 10)?;
+        c.write(header, &mut writer)
+      },
+      Control2::Type11(ref c) => {
+        header.endianness().write_u16(&mut writer, 11)?;
+        c.write(header, &mut writer)
+      },
+      Control2::Type13(ref c) => {
+        header.endianness().write_u16(&mut writer, 13)?;
+        c.write(header, &mut writer)
+      },
+      Control2::Type14(ref c) => {
+        header.endianness().write_u16(&mut writer, 14)?;
+        c.write(header, &mut writer)
+      },
+      Control2::Type15(ref c) => {
+        header.endianness().write_u16(&mut writer, 15)?;
+        c.write(header, &mut writer)
+      },
+      Control2::Type16(ref c) => {
+        header.endianness().write_u16(&mut writer, 16)?;
+        c.write(header, &mut writer)
+      },
+      Control2::Type17(ref c) => {
+        header.endianness().write_u16(&mut writer, 17)?;
+        c.write(header, &mut writer)
+      },
+      Control2::Type18(ref c) => {
+        header.endianness().write_u16(&mut writer, 18)?;
+        c.write(header, &mut writer)
+      },
+      Control2::Type19(ref c) => {
+        header.endianness().write_u16(&mut writer, 19)?;
+        c.write(header, &mut writer)
+      },
+    }
   }
 }

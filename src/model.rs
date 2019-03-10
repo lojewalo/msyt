@@ -1,6 +1,11 @@
-use crate::botw::Control;
+use crate::{
+  Result,
+  botw::Control,
+};
 
+use byteordered::Endian;
 use indexmap::IndexMap;
+use msbt::{Encoding, Header};
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -16,33 +21,28 @@ pub enum Content {
 }
 
 impl Content {
-  pub fn combine_utf8(contents: &[Content]) -> Vec<u8> {
+  pub fn write_all(header: &Header, contents: &[Content]) -> Result<Vec<u8>> {
     let mut buf = Vec::new();
 
     for content in contents {
       match *content {
-        Content::Text(ref s) => buf.append(&mut s.as_bytes().to_vec()),
-        Content::Control(_) => unimplemented!("exporting with controls not implemented"),
-      }
-    }
-
-    buf
-  }
-
-  pub fn combine_utf16(contents: &[Content]) -> Vec<u16> {
-    let mut buf = Vec::new();
-
-    for content in contents {
-      match *content {
-        Content::Text(ref s) => {
-          let mut utf16_bytes: Vec<u16> = s.encode_utf16().collect();
-          buf.append(&mut utf16_bytes);
+        Content::Text(ref s) => match header.encoding() {
+          Encoding::Utf16 => {
+            let mut inner_buf = [0; 2];
+            let mut bytes: Vec<u8> = s.encode_utf16()
+              .flat_map(|x| {
+                header.endianness().write_u16(&mut inner_buf[..], x).expect("failed writing to array");
+                inner_buf.to_vec()
+              })
+              .collect();
+            buf.append(&mut bytes);
+          }
+          Encoding::Utf8 => buf.append(&mut s.as_bytes().to_vec()),
         },
-        Content::Control(_) => unimplemented!("exporting with controls not implemented"),
+        Content::Control(ref c) => c.write(header, &mut buf)?,
       }
     }
 
-    buf
+    Ok(buf)
   }
 }
-

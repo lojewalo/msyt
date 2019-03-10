@@ -1,10 +1,12 @@
 use crate::Result;
 
-use byteordered::{Endianness, Endian};
+use byteordered::Endian;
+
+use msbt::Header;
 
 use serde_derive::{Deserialize, Serialize};
 
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 
 mod zero;
 mod one;
@@ -28,15 +30,15 @@ pub enum Control4 {
 }
 
 impl Control4 {
-  pub fn parse(endianness: Endianness, buf: &[u8]) -> Result<(usize, Self)> {
+  pub fn parse(header: &Header, buf: &[u8]) -> Result<(usize, Self)> {
     let mut c = Cursor::new(buf);
 
-    let kind = endianness.read_u16(&mut c)?;
+    let kind = header.endianness().read_u16(&mut c)?;
     let control = match kind {
-      0 => Control4::Type0(Control4_0::parse(endianness, &mut c)?),
-      1 => Control4::Type1(Control4_1::parse(endianness, &mut c)?),
-      2 => Control4::Type2(Control4_2::parse(endianness, &mut c)?),
-      3 => Control4::Type3(Control4_3::parse(endianness, &mut c)?),
+      0 => Control4::Type0(Control4_0::parse(header, &mut c)?),
+      1 => Control4::Type1(Control4_1::parse(header, &mut c)?),
+      2 => Control4::Type2(Control4_2::parse(header, &mut c)?),
+      3 => Control4::Type3(Control4_3::parse(header, &mut c)?),
       x => failure::bail!("unknown control 4 type: {}", x),
     };
 
@@ -44,5 +46,26 @@ impl Control4 {
       c.position() as usize,
       control,
     ))
+  }
+
+  pub fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+    match *self {
+      Control4::Type0(ref c) => {
+        header.endianness().write_u16(&mut writer, 0)?;
+        c.write(header, &mut writer)
+      },
+      Control4::Type1(ref c) => {
+        header.endianness().write_u16(&mut writer, 1)?;
+        c.write(header, &mut writer)
+      },
+      Control4::Type2(ref c) => {
+        header.endianness().write_u16(&mut writer, 2)?;
+        c.write(header, &mut writer)
+      },
+      Control4::Type3(ref c) => {
+        header.endianness().write_u16(&mut writer, 3)?;
+        c.write(header, &mut writer)
+      },
+    }
   }
 }
