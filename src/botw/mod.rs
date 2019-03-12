@@ -6,7 +6,10 @@ use byteordered::Endian;
 use failure::ResultExt;
 use msbt::Header;
 use serde_derive::{Deserialize, Serialize};
-use std::io::{Cursor, Write};
+use std::{
+  boxed::Box,
+  io::{Cursor, Write},
+};
 
 pub mod zero;
 pub mod one;
@@ -34,20 +37,13 @@ pub fn parse_controls(header: &Header, s: &[u8]) -> Result<Vec<Content>> {
       if last_was_marker {
         let body = &s[i + 2..];
         let (read, ctl) = match u {
-          0x00 => self::zero::Control0::parse(header, body).map(|(r, c)| (r, Control::Zero(c)))
-            .with_context(|_| "could not parse control sequence 0")?,
-          0x01 => self::one::Control1::parse(header, body).map(|(r, c)| (r, Control::One(c)))
-            .with_context(|_| "could not parse control sequence 1")?,
-          0x02 => self::two::Control2::parse(header, body).map(|(r, c)| (r, Control::Two(c)))
-            .with_context(|_| "could not parse control sequence 2")?,
-          0x03 => self::three::Control3::parse(header, body).map(|(r, c)| (r, Control::Three(c)))
-            .with_context(|_| "could not parse control sequence 3")?,
-          0x04 => self::four::Control4::parse(header, body).map(|(r, c)| (r, Control::Four(c)))
-            .with_context(|_| "could not parse control sequence 4")?,
-          0x05 => self::five::Control5::parse(header, body).map(|(r, c)| (r, Control::Five(c)))
-            .with_context(|_| "could not parse control sequence 5")?,
-          0xc9 => self::two_hundred_one::Control201::parse(header, body).map(|(r, c)| (r, Control::TwoHundredOne(c)))
-            .with_context(|_| "could not parse control sequence 201")?,
+          0x00 => self::zero::Control0::parse(header, body).with_context(|_| "could not parse control sequence 0")?,
+          0x01 => self::one::Control1::parse(header, body).with_context(|_| "could not parse control sequence 1")?,
+          0x02 => self::two::Control2::parse(header, body).with_context(|_| "could not parse control sequence 2")?,
+          0x03 => self::three::Control3::parse(header, body).with_context(|_| "could not parse control sequence 3")?,
+          0x04 => self::four::Control4::parse(header, body).with_context(|_| "could not parse control sequence 4")?,
+          0x05 => self::five::Control5::parse(header, body).with_context(|_| "could not parse control sequence 5")?,
+          0xc9 => self::two_hundred_one::Control201::parse(header, body).with_context(|_| "could not parse control sequence 201")?,
           x => failure::bail!("unknown control sequence: {}", x),
         };
         let part = Content::Control(ctl);
@@ -99,8 +95,137 @@ pub fn parse_controls(header: &Header, s: &[u8]) -> Result<Vec<Content>> {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", tag = "kind")]
 pub enum Control {
+  Raw(RawControl),
+
+  SetColour { colour: Colour },
+  ResetColour,
+  Pause { length: PauseLength },
+  Icon { icon: Icon },
+  Variable {
+    variable_kind: u16,
+    name: String,
+  },
+  Choice {
+    choice_labels: Vec<u16>,
+    selected_index: u8,
+    cancel_index: u8,
+    unknown: u16,
+  },
+  Sound { unknown: Vec<u8> },
+  Animation { name: String },
+}
+
+enum MainControlRef<'a> {
+  Borrowed(&'a MainControl),
+  Owned(Box<MainControl>),
+}
+
+impl<'a> MainControl for MainControlRef<'a> {
+  fn marker(&self) -> u16 {
+    match *self {
+      MainControlRef::Borrowed(ref b) => b.marker(),
+      MainControlRef::Owned(ref b) => b.marker(),
+    }
+  }
+
+  fn parse(_header: &Header, _buf: &[u8]) -> Result<(usize, Control)>
+    where Self: Sized
+  {
+    unimplemented!()
+  }
+
+  fn write(&self, header: &Header, writer: &mut Write) -> Result<()> {
+    match *self {
+      MainControlRef::Borrowed(ref b) => b.write(header, writer),
+      MainControlRef::Owned(ref b) => b.write(header, writer),
+    }
+  }
+}
+
+impl Control {
+  fn as_main_control(&self) -> Result<MainControlRef> {
+    let b: Box<MainControl> = match *self {
+      Control::Raw(ref raw) => return Ok(MainControlRef::Borrowed(raw.as_main_control())),
+
+      Control::SetColour { colour } => Box::new(self::zero::Control0::Three(self::zero::three::Control0_3 {
+        field_1: 2,
+        field_2: colour.as_u16(),
+      })),
+      Control::ResetColour => Box::new(self::zero::Control0::Three(self::zero::three::Control0_3 {
+        field_1: 2,
+        field_2: 65535,
+      })),
+      Control::Pause { length } => Box::new(self::five::Control5 {
+        field_1: length.as_u16(),
+        field_2: 0,
+      }),
+      Control::Icon { icon } => Box::new(self::one::Control1::Seven(self::one::seven::Control1_7 {
+        field_1: 2,
+        field_2: [
+          icon.as_u8(),
+          205,
+        ],
+      })),
+      Control::Variable { variable_kind, ref name } => Box::new(self::two::Control2::Variable(variable_kind, self::two::variable::Control2Variable {
+        field_1: name.len() as u16 * 2 + 4,
+        string: name.clone(),
+        field_3: 0,
+      })),
+      Control::Choice { ref choice_labels, selected_index, cancel_index, unknown } => {
+        match choice_labels.len() + 2 {
+          4 => Box::new(self::one::Control1::Four(self::one::four::Control1_4 {
+            field_1: unknown,
+            field_2: choice_labels[0],
+            field_3: choice_labels[1],
+            field_4: [selected_index, cancel_index],
+          })),
+          5 => Box::new(self::one::Control1::Five(self::one::five::Control1_5 {
+            field_1: unknown,
+            field_2: choice_labels[0],
+            field_3: choice_labels[1],
+            field_4: choice_labels[2],
+            field_5: [selected_index, cancel_index],
+          })),
+          6 => Box::new(self::one::Control1::Six(self::one::six::Control1_6 {
+            field_1: unknown,
+            field_2: choice_labels[0],
+            field_3: choice_labels[1],
+            field_4: choice_labels[2],
+            field_5: choice_labels[3],
+            field_6: [selected_index, cancel_index],
+          })),
+          _ => failure::bail!("invalid choice: only 2 to 4 options allowed but got {}", choice_labels.len()),
+        }
+      },
+      Control::Sound { ref unknown } => Box::new(self::three::Control3 {
+        field_1: 1,
+        field_2: unknown.clone(),
+      }),
+      Control::Animation { ref name } => Box::new(self::four::Control4::Two(self::four::two::Control4_2 {
+        field_1: name.len() as u16 * 2 + 2,
+        string: name.clone(),
+      })),
+    };
+
+    Ok(MainControlRef::Owned(b))
+  }
+
+  pub fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+    header.endianness().write_u16(&mut writer, 0x0e).with_context(|_| "could not write control marker")?;
+    let control = self.as_main_control()?;
+    header.endianness().write_u16(&mut writer, control.marker())
+      .with_context(|_| format!("could not write control marker for type {}", control.marker()))?;
+    control.write(header, &mut writer)
+      .with_context(|_| format!("could not write control type {}", control.marker()))
+      .map_err(Into::into)
+  }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RawControl {
   Zero(self::zero::Control0),
   One(self::one::Control1),
   Two(self::two::Control2),
@@ -110,30 +235,191 @@ pub enum Control {
   TwoHundredOne(self::two_hundred_one::Control201),
 }
 
-impl Control {
-  pub fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
-    header.endianness().write_u16(&mut writer, 0x0e).with_context(|_| "could not write control marker")?;
-    let control = match *self {
-      Control::Zero(ref c) => c as &MainControl,
-      Control::One(ref c) => c as &MainControl,
-      Control::Two(ref c) => c as &MainControl,
-      Control::Three(ref c) => c as &MainControl,
-      Control::Four(ref c) => c as &MainControl,
-      Control::Five(ref c) => c as &MainControl,
-      Control::TwoHundredOne(ref c) => c as &MainControl,
+impl RawControl {
+  fn as_main_control(&self) -> &MainControl {
+    match *self {
+      RawControl::Zero(ref c) => c as &MainControl,
+      RawControl::One(ref c) => c as &MainControl,
+      RawControl::Two(ref c) => c as &MainControl,
+      RawControl::Three(ref c) => c as &MainControl,
+      RawControl::Four(ref c) => c as &MainControl,
+      RawControl::Five(ref c) => c as &MainControl,
+      RawControl::TwoHundredOne(ref c) => c as &MainControl,
+    }
+  }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum Colour {
+  Red,
+  LightGreen1,
+  Blue,
+  Grey,
+  LightGreen4,
+  Orange,
+  LightGrey,
+}
+
+impl Colour {
+  pub(crate) fn from_u16(c: u16) -> Option<Colour> {
+    let c = match c {
+      0 => Colour::Red,
+      1 => Colour::LightGreen1,
+      2 => Colour::Blue,
+      3 => Colour::Grey,
+      4 => Colour::LightGreen4,
+      5 => Colour::Orange,
+      6 => Colour::LightGrey,
+      _ => return None,
     };
-    header.endianness().write_u16(&mut writer, control.marker())
-      .with_context(|_| format!("could not write control marker for type {}", control.marker()))?;
-    control.write(header, &mut writer)
-      .with_context(|_| format!("could not write control type {}", control.marker()))
-      .map_err(Into::into)
+    Some(c)
+  }
+
+  pub(crate) fn as_u16(self) -> u16 {
+    match self {
+      Colour::Red => 0,
+      Colour::LightGreen1 => 1,
+      Colour::Blue => 2,
+      Colour::Grey => 3,
+      Colour::LightGreen4 => 4,
+      Colour::Orange => 5,
+      Colour::LightGrey => 6,
+    }
+  }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum PauseLength {
+  Short,
+  Long,
+  Longer,
+}
+
+impl PauseLength {
+  pub(crate) fn from_u16(u: u16) -> Option<Self> {
+    let p = match u {
+      0 => PauseLength::Short,
+      1 => PauseLength::Long,
+      2 => PauseLength::Longer,
+      _ => return None,
+    };
+
+    Some(p)
+  }
+
+  pub(crate) fn as_u16(self) -> u16 {
+    match self {
+      PauseLength::Short => 0,
+      PauseLength::Long => 1,
+      PauseLength::Longer => 2,
+    }
+  }
+}
+#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum Icon {
+  Zl(u8),
+  L,
+  R,
+  Y,
+  X(u8),
+  A(u8),
+  B,
+  Plus,
+  Minus,
+  DPadDown,
+  DPadLeft,
+  DPadRight,
+  DPadUp,
+  RStickHorizontal,
+  RStickPress,
+  RStickVertical,
+  LStickBack,
+  LStickForward,
+  LStickLeft,
+  LStickPress,
+  LStickRight,
+  Gamepad,
+
+  LeftArrow,
+  RightArrow,
+  UpArrow,
+
+  Unknown(u8),
+}
+
+impl Icon {
+  pub fn from_u8(u: u8) -> Self {
+    match u {
+      0 => Icon::LStickForward,
+      1 => Icon::LStickBack,
+      2 => Icon::LStickLeft,
+      3 => Icon::LStickRight,
+      4 => Icon::RStickVertical,
+      5 => Icon::RStickHorizontal,
+      6 => Icon::DPadUp,
+      7 => Icon::DPadDown,
+      8 => Icon::DPadLeft,
+      9 => Icon::DPadRight,
+      x @ 10 | x @ 11 => Icon::A(x),
+      x @ 12 | x @ 37 | x @ 38 => Icon::X(x),
+      13 => Icon::Y,
+      x @ 14 | x @ 15 => Icon::Zl(x),
+      17 => Icon::B,
+      20 => Icon::L,
+      21 => Icon::R,
+      23 => Icon::Plus,
+      24 => Icon::Minus,
+      25 => Icon::RightArrow,
+      26 => Icon::LeftArrow,
+      27 => Icon::UpArrow,
+      33 => Icon::LStickPress,
+      34 => Icon::RStickPress,
+      36 => Icon::Gamepad,
+
+      x => Icon::Unknown(x),
+    }
+  }
+
+  pub fn as_u8(self) -> u8 {
+    match self {
+      Icon::LStickForward => 0,
+      Icon::LStickBack => 1,
+      Icon::LStickLeft => 2,
+      Icon::LStickRight => 3,
+      Icon::RStickVertical => 4,
+      Icon::RStickHorizontal => 5,
+      Icon::DPadUp => 6,
+      Icon::DPadDown => 7,
+      Icon::DPadLeft => 8,
+      Icon::DPadRight => 9,
+      Icon::A(x) => x,
+      Icon::X(x) => x,
+      Icon::Y => 13,
+      Icon::Zl(x) => x,
+      Icon::B => 17,
+      Icon::L => 20,
+      Icon::R => 21,
+      Icon::Plus => 23,
+      Icon::Minus => 24,
+      Icon::RightArrow => 25,
+      Icon::LeftArrow => 26,
+      Icon::UpArrow => 27,
+      Icon::LStickPress => 33,
+      Icon::RStickPress => 34,
+      Icon::Gamepad => 36,
+
+      Icon::Unknown(u) => u,
+    }
   }
 }
 
 pub(crate) trait MainControl {
   fn marker(&self) -> u16;
 
-  fn parse(header: &Header, buf: &[u8]) -> Result<(usize, Self)>
+  fn parse(header: &Header, buf: &[u8]) -> Result<(usize, Control)>
     where Self: Sized;
 
   fn write(&self, header: &Header, writer: &mut Write) -> Result<()>;
@@ -142,7 +428,7 @@ pub(crate) trait MainControl {
 pub(crate) trait SubControl {
   fn marker(&self) -> u16;
 
-  fn parse(header: &Header, reader: &mut Cursor<&[u8]>) -> Result<Self>
+  fn parse(header: &Header, reader: &mut Cursor<&[u8]>) -> Result<Control>
     where Self: Sized;
 
   fn write(&self, header: &Header, writer: &mut Write) -> Result<()>;

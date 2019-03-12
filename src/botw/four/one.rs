@@ -1,7 +1,8 @@
 use crate::{
   Result,
-  botw::SubControl,
+  botw::{Control, RawControl, SubControl},
 };
+use super::Control4;
 
 use byteordered::Endian;
 
@@ -23,15 +24,15 @@ impl SubControl for Control4_1 {
     1
   }
 
-  fn parse(header: &Header, mut reader: &mut Cursor<&[u8]>) -> Result<Self> {
+  fn parse(header: &Header, mut reader: &mut Cursor<&[u8]>) -> Result<Control> {
     let field_1_len = header.endianness().read_u16(&mut reader)
       .with_context(|_| "could not read field_1 length")?;
     let mut field_1 = vec![0; field_1_len as usize];
     reader.read_exact(&mut field_1).with_context(|_| "could not read field_1")?;
 
-    Ok(Control4_1 {
+    Ok(Control::Raw(RawControl::Four(Control4::One(Control4_1 {
       field_1,
-    })
+    }))))
   }
 
   fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {

@@ -1,6 +1,6 @@
 use crate::{
   Result,
-  botw::MainControl,
+  botw::{Control, MainControl, RawControl},
 };
 
 use byteordered::Endian;
@@ -29,7 +29,7 @@ impl MainControl for Control201 {
     201
   }
 
-  fn parse(header: &Header, buf: &[u8]) -> Result<(usize, Control201)> {
+  fn parse(header: &Header, buf: &[u8]) -> Result<(usize, Control)> {
     let mut c = Cursor::new(buf);
     let field_1 = header.endianness().read_u16(&mut c).with_context(|_| "could not read field_1")?;
     let field_2 = header.endianness().read_u16(&mut c).with_context(|_| "could not read field_2")?;
@@ -55,7 +55,7 @@ impl MainControl for Control201 {
 
     Ok((
       c.position() as usize,
-      Control201 {
+      Control::Raw(RawControl::TwoHundredOne(Control201 {
         field_1,
         field_2,
         field_3,
@@ -63,7 +63,7 @@ impl MainControl for Control201 {
         field_5,
         field_6,
         field_7,
-      }
+      }))
     ))
   }
 
