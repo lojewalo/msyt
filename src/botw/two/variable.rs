@@ -1,7 +1,4 @@
-use crate::{
-  Result,
-  botw::SubControl,
-};
+use crate::Result;
 
 use byteordered::Endian;
 
@@ -15,17 +12,13 @@ use std::io::{Cursor, Read, Write};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Control2Variable {
-  field_1: u16,
-  string: String,
-  field_3: u16,
+  pub(crate) field_1: u16,
+  pub(crate) string: String,
+  pub(crate) field_3: u16,
 }
 
-impl SubControl for Control2Variable {
-  fn marker(&self) -> u16 {
-    unimplemented!("if you see this, this is a bug")
-  }
-
-  fn parse(header: &Header, mut reader: &mut Cursor<&[u8]>) -> Result<Self> {
+impl Control2Variable {
+  pub(crate) fn parse(header: &Header, mut reader: &mut Cursor<&[u8]>) -> Result<Self> {
     let field_1 = header.endianness().read_u16(&mut reader).with_context(|_| "could not read field_1")?;
     let str_len = header.endianness().read_u16(&mut reader).with_context(|_| "could not read string length")?;
 
@@ -52,7 +45,7 @@ impl SubControl for Control2Variable {
     })
   }
 
-  fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+  pub(crate) fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
     header.endianness().write_u16(&mut writer, self.field_1).with_context(|_| "could not write field_1")?;
 
     let str_bytes = match header.encoding() {

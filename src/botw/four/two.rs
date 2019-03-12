@@ -1,6 +1,6 @@
 use crate::{
   Result,
-  botw::SubControl,
+  botw::{Control, SubControl},
 };
 
 use byteordered::Endian;
@@ -15,8 +15,8 @@ use std::io::{Cursor, Read, Write};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Control4_2 {
-  field_1: u16,
-  string: String,
+  pub(crate) field_1: u16,
+  pub(crate) string: String,
 }
 
 impl SubControl for Control4_2 {
@@ -24,8 +24,8 @@ impl SubControl for Control4_2 {
     2
   }
 
-  fn parse(header: &Header, mut reader: &mut Cursor<&[u8]>) -> Result<Self> {
-    let field_1 = header.endianness().read_u16(&mut reader)
+  fn parse(header: &Header, mut reader: &mut Cursor<&[u8]>) -> Result<Control> {
+    let _field_1 = header.endianness().read_u16(&mut reader)
       .with_context(|_| "could not read field_1")?;
     let str_len = header.endianness().read_u16(&mut reader)
       .with_context(|_| "could not read string length")?;
@@ -44,9 +44,8 @@ impl SubControl for Control4_2 {
       Encoding::Utf8 => String::from_utf8(str_bytes).with_context(|_| "could not parse utf-8 string")?,
     };
 
-    Ok(Control4_2 {
-      field_1,
-      string,
+    Ok(Control::Animation {
+      name: string,
     })
   }
 

@@ -1,6 +1,6 @@
 use crate::{
   Result,
-  botw::SubControl,
+  botw::{Control, SubControl},
 };
 
 use byteordered::Endian;
@@ -15,11 +15,11 @@ use std::io::{Cursor, Read, Write};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Control1_5 {
-  field_1: u16,
-  field_2: u16,
-  field_3: u16,
-  field_4: u16,
-  field_5: [u8; 2],
+  pub(crate) field_1: u16,
+  pub(crate) field_2: u16,
+  pub(crate) field_3: u16,
+  pub(crate) field_4: u16,
+  pub(crate) field_5: [u8; 2],
 }
 
 impl SubControl for Control1_5 {
@@ -27,7 +27,7 @@ impl SubControl for Control1_5 {
     5
   }
 
-  fn parse(header: &Header, mut reader: &mut Cursor<&[u8]>) -> Result<Self> {
+  fn parse(header: &Header, mut reader: &mut Cursor<&[u8]>) -> Result<Control> {
     let mut field_5 = [0; 2];
     let field_1 = header.endianness().read_u16(&mut reader).with_context(|_| "could not read field_1")?;
     let field_2 = header.endianness().read_u16(&mut reader).with_context(|_| "could not read field_2")?;
@@ -35,12 +35,11 @@ impl SubControl for Control1_5 {
     let field_4 = header.endianness().read_u16(&mut reader).with_context(|_| "could not read field_4")?;
     reader.read_exact(&mut field_5[..]).with_context(|_| "could not read field_5")?;
 
-    Ok(Control1_5 {
-      field_1,
-      field_2,
-      field_3,
-      field_4,
-      field_5,
+    Ok(Control::Choice {
+      unknown: field_1,
+      choice_labels: vec![field_2, field_3, field_4],
+      selected_index: field_5[0],
+      cancel_index: field_5[1],
     })
   }
 
