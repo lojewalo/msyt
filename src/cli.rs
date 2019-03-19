@@ -34,6 +34,20 @@ pub fn app<'a, 'b: 'a>() -> App<'a, 'b> {
         .long("directories")
         .alias("directory"))
 
+      .arg(Arg::with_name("no-backup")
+        .help("Do not create a backup of any existing output files")
+        .short("B")
+        .long("no-backup")
+        .conflicts_with("backup"))
+
+      .arg(Arg::with_name("extension")
+        .help("The extension to use when exporting")
+        .short("e")
+        .long("extension")
+        .alias("ext")
+        .takes_value(true)
+        .default_value("msbt"))
+
       .arg(Arg::with_name("paths")
         .help("MSBT paths to export")
         .required(true)
