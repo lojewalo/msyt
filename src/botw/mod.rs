@@ -115,6 +115,7 @@ pub enum Control {
   },
   Sound { unknown: Vec<u8> },
   Animation { name: String },
+  TextSize { percent: u16 },
 }
 
 enum MainControlRef<'a> {
@@ -207,6 +208,10 @@ impl Control {
         field_1: name.len() as u16 * 2 + 2,
         string: name.clone(),
       })),
+      Control::TextSize { percent } => Box::new(self::zero::Control0::Two(self::zero::two::Control0_2 {
+        field_1: 2,
+        field_2: percent,
+      }))
     };
 
     Ok(MainControlRef::Owned(b))
