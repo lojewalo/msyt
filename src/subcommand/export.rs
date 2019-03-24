@@ -53,7 +53,21 @@ pub fn export(matches: &ArgMatches) -> Result<()> {
 
       entries.sort_keys();
 
-      let msyt = Msyt { entries };
+      let msyt = Msyt {
+        entries,
+        group_count: lbl1.group_count(),
+        ato1: msbt.ato1().map(|a| a.unknown_bytes().to_vec()),
+        atr1: msbt.atr1().map(|a| crate::model::Atr1 {
+          string_count: a.string_count(),
+          _unknown_1: a.unknown_1(),
+          strings: a.strings().into_iter().map(ToOwned::to_owned).collect(),
+        }),
+        tsy1: msbt.tsy1().map(|a| a.unknown_bytes().to_vec()),
+        nli1: msbt.nli1().map(|a| crate::model::Nli1 {
+          id_count: a.id_count(),
+          global_ids: a.global_ids().clone(),
+        }),
+      };
 
       let lossy_path = path.to_string_lossy();
       let base = match lossy_path.rsplitn(2, '.').nth(1) {
