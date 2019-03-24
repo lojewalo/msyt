@@ -1,7 +1,7 @@
 use clap::ArgMatches;
 use failure::Fail;
 use indexmap::IndexMap;
-use msbt::Msbt;
+use msbt::{Msbt, section::Atr1};
 use rayon::prelude::*;
 
 use std::{
@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
   Result,
-  model::Msyt,
+  model::{Msyt, Entry},
   subcommand::find_files,
 };
 
@@ -48,7 +48,15 @@ pub fn export(matches: &ArgMatches) -> Result<()> {
         let mut parts = crate::botw::parse_controls(msbt.header(), raw_value)
           .map_err(|e| e.context(format!("could not parse control sequences in {}", path.to_string_lossy())))?;
         all_content.append(&mut parts);
-        entries.insert(label.name().to_string(), all_content);
+        let entry = Entry {
+          attributes: msbt.atr1()
+            .and_then(|a| a.strings()
+              .get(label.index() as usize)
+              .map(|s| crate::util::strip_nul(*s))
+              .map(ToString::to_string)),
+          contents: all_content,
+        };
+        entries.insert(label.name().to_string(), entry);
       }
 
       entries.sort_keys();
@@ -56,12 +64,8 @@ pub fn export(matches: &ArgMatches) -> Result<()> {
       let msyt = Msyt {
         entries,
         group_count: lbl1.group_count(),
+        atr1_unknown: msbt.atr1().map(Atr1::unknown_1),
         ato1: msbt.ato1().map(|a| a.unknown_bytes().to_vec()),
-        atr1: msbt.atr1().map(|a| crate::model::Atr1 {
-          string_count: a.string_count(),
-          _unknown_1: a.unknown_1(),
-          strings: a.strings().into_iter().map(ToOwned::to_owned).collect(),
-        }),
         tsy1: msbt.tsy1().map(|a| a.unknown_bytes().to_vec()),
         nli1: msbt.nli1().map(|a| crate::model::Nli1 {
           id_count: a.id_count(),

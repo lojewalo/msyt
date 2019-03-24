@@ -13,28 +13,28 @@ use std::collections::BTreeMap;
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Msyt {
   pub group_count: u32,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub atr1_unknown: Option<u32>,
   #[serde(default, skip_serializing_if = "Option::is_none", with = "crate::util::option_serde_base64")]
   pub ato1: Option<Vec<u8>>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub atr1: Option<Atr1>,
   #[serde(default, skip_serializing_if = "Option::is_none", with = "crate::util::option_serde_base64")]
   pub tsy1: Option<Vec<u8>>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub nli1: Option<Nli1>,
-  pub entries: IndexMap<String, Vec<Content>>,
+  pub entries: IndexMap<String, Entry>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Entry {
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub attributes: Option<String>,
+  pub contents: Vec<Content>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Nli1 {
   pub id_count: u32,
   pub global_ids: BTreeMap<u32, u32>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Atr1 {
-  pub string_count: u32,
-  pub _unknown_1: u32,
-  pub strings: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

@@ -55,8 +55,15 @@ pub fn create(matches: &ArgMatches) -> Result<()> {
       if let Some(unknown_bytes) = msyt.ato1 {
         builder = builder.ato1(msbt::section::Ato1::new_unlinked(unknown_bytes));
       }
-      if let Some(atr1) = msyt.atr1 {
-        builder = builder.atr1(msbt::section::Atr1::new_unlinked(atr1.string_count, atr1._unknown_1, atr1.strings));
+      if let Some(unknown_1) = msyt.atr1_unknown {
+        let strings: Option<Vec<String>> = msyt.entries
+          .iter()
+          .map(|(_, e)| e.attributes.clone())
+          .map(|s| s.map(crate::util::append_nul))
+          .collect();
+        if let Some(strings) = strings {
+          builder = builder.atr1(msbt::section::Atr1::new_unlinked(strings.len() as u32, unknown_1, strings));
+        }
       }
       if let Some(unknown_bytes) = msyt.tsy1 {
         builder = builder.tsy1(msbt::section::Tsy1::new_unlinked(unknown_bytes));
@@ -64,8 +71,8 @@ pub fn create(matches: &ArgMatches) -> Result<()> {
       if let Some(nli1) = msyt.nli1 {
         builder = builder.nli1(msbt::section::Nli1::new_unlinked(nli1.id_count, nli1.global_ids));
       }
-      for (label, contents) in msyt.entries.into_iter() {
-        let new_val = Content::write_all(builder.header(), &contents)?;
+      for (label, entry) in msyt.entries.into_iter() {
+        let new_val = Content::write_all(builder.header(), &entry.contents)?;
         builder = builder.add_label(label, new_val);
       }
       let msbt = builder.build();
