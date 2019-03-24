@@ -79,6 +79,13 @@ pub fn app<'a, 'b: 'a>() -> App<'a, 'b> {
         .possible_values(&["utf16", "utf8"])
         .default_value("utf16"))
 
+      .arg(Arg::with_name("output")
+        .help("The directory to place output files in")
+        .short("o")
+        .long("output")
+        .takes_value(true)
+        .required(true))
+
       .arg(Arg::with_name("paths")
         .help("MSYT paths to create MSBT files from")
         .required(true)
