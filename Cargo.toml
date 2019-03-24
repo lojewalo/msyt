@@ -11,7 +11,7 @@ byteordered = "0.4"
 clap = "2"
 failure = "0.1"
 indexmap = { version = "1", features = ["serde", "serde-1"] }
-msbt = { git = "https://github.com/jkcclemens/msbt-rs", branch = "no-msbts-refactor" }
+msbt = { git = "https://github.com/jkcclemens/msbt-rs" }
 rayon = "1"
 serde = "1"
 serde_derive = "1"
