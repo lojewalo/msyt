@@ -2,6 +2,7 @@ mod botw;
 mod cli;
 mod model;
 mod subcommand;
+mod util;
 
 pub type Result<T> = std::result::Result<T, failure::Error>;
 
@@ -27,6 +28,7 @@ fn inner() -> Result<()> {
   match matches.subcommand() {
     ("export", Some(sub_matches)) => self::subcommand::export(sub_matches),
     ("import", Some(sub_matches)) => self::subcommand::import(sub_matches),
+    ("create", Some(sub_matches)) => self::subcommand::create(sub_matches),
     _ => unreachable!("clap allowed an unspecified subcommand"),
   }
 }
