@@ -35,8 +35,8 @@ pub fn import(matches: &ArgMatches) -> Result<()> {
 
       let mut msbt = Msbt::from_reader(BufReader::new(msbt_file))?;
 
-      for (key, contents) in msyt.entries {
-        let new_val = Content::write_all(msbt.header(), &contents)?;
+      for (key, entry) in msyt.entries {
+        let new_val = Content::write_all(msbt.header(), &entry.contents)?;
         if let Some(ref mut lbl1) = msbt.lbl1_mut() {
           if let Some(label) = lbl1.labels_mut().iter_mut().find(|x| x.name() == key) {
             if let Err(()) = label.set_value_raw(new_val) {
