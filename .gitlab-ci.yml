@@ -1,0 +1,39 @@
+image: rustlang/rust:nightly-slim
+
+stages:
+  - build
+  # - test
+  - build_release
+
+before_script:
+  - apt-get -y -qq update && apt-get -y -qq install gcc-mingw-w64-x86-64
+  - rustup target add x86_64-pc-windows-gnu
+  - rustup target add x86_64-unknown-linux-musl
+  - |
+    echo '[target.x86_64-pc-windows-gnu]
+    linker = "x86_64-w64-mingw32-gcc"
+    ar = "x86_64-w64-mingw32-gcc-ar"' >> /usr/local/cargo/config
+
+build_linux:
+  stage: build
+  script: cargo build --all-features
+
+build_linux_release:
+  stage: build_release
+  script: cargo build --all-features --release
+
+build_win:
+  stage: build
+  script: cargo build --all-features --target=x86_64-pc-windows-gnu
+
+build_win_release:
+  stage: build_release
+  script: cargo build --all-features --release --target=x86_64-pc-windows-gnu
+
+build_linux_musl:
+  stage: build
+  script: cargo build --all-features --target=x86_64-unknown-linux-musl
+
+build_linux_musl_release:
+  stage: build_release
+  script: cargo build --all-features --release --target=x86_64-unknown-linux-musl
