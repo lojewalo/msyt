@@ -56,14 +56,23 @@ pub fn create(matches: &ArgMatches) -> Result<()> {
         builder = builder.ato1(msbt::section::Ato1::new_unlinked(unknown_bytes));
       }
       if let Some(unknown_1) = msyt.atr1_unknown {
+        // ATR1 should have exactly the same amount of entries as TXT2. In the BotW files, sometimes
+        // an ATR1 section is specified to have that amount but the section is actually empty. For
+        // msyt's purposes, if the msyt does not contain the same amount of attributes as it does
+        // text entries (i.e. not every label has an `attributes` node), it will be assumed that the
+        // ATR1 section should specify that it has the correct amount of entries but actually be
+        // empty.
         let strings: Option<Vec<String>> = msyt.entries
           .iter()
           .map(|(_, e)| e.attributes.clone())
           .map(|s| s.map(crate::util::append_nul))
           .collect();
-        if let Some(strings) = strings {
-          builder = builder.atr1(msbt::section::Atr1::new_unlinked(strings.len() as u32, unknown_1, strings));
-        }
+        let atr_len = match strings {
+          Some(ref s) => s.len(),
+          None => msyt.entries.len(),
+        };
+        let strings = strings.unwrap_or_default();
+        builder = builder.atr1(msbt::section::Atr1::new_unlinked(atr_len as u32, unknown_1, strings));
       }
       if let Some(unknown_bytes) = msyt.tsy1 {
         builder = builder.tsy1(msbt::section::Tsy1::new_unlinked(unknown_bytes));
