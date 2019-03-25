@@ -116,6 +116,7 @@ pub enum Control {
   Sound { unknown: Vec<u8> },
   Animation { name: String },
   TextSize { percent: u16 },
+  AutoAdvance { frames: u32 },
 }
 
 enum MainControlRef<'a> {
@@ -211,7 +212,11 @@ impl Control {
       Control::TextSize { percent } => Box::new(self::zero::Control0::Two(self::zero::two::Control0_2 {
         field_1: 2,
         field_2: percent,
-      }))
+      })),
+      Control::AutoAdvance { frames } => Box::new(self::one::Control1::Three(self::one::three::Control1_3 {
+        field_1: 4,
+        field_2: frames,
+      })),
     };
 
     Ok(MainControlRef::Owned(b))
