@@ -160,7 +160,7 @@ impl Control {
         field_1: 2,
         field_2: 65535,
       })),
-      Control::Pause(PauseKind::Duration(length)) => Box::new(self::five::Control5 {
+      Control::Pause(PauseKind::Length(length)) => Box::new(self::five::Control5 {
         field_1: length.as_u16(),
         field_2: 0,
       }),
@@ -311,7 +311,7 @@ impl Colour {
 #[serde(rename_all = "snake_case")]
 pub enum PauseKind {
   Frames(u32),
-  Duration(PauseLength),
+  Length(PauseLength),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
