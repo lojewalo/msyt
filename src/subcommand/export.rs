@@ -7,7 +7,7 @@ use rayon::prelude::*;
 use std::{
   fs::File,
   io::{BufReader, BufWriter},
-  path::PathBuf,
+  path::{Path, PathBuf},
 };
 
 use crate::{
@@ -17,11 +17,13 @@ use crate::{
 };
 
 pub fn export(matches: &ArgMatches) -> Result<()> {
+  let input_paths: Vec<&str> = matches.values_of("paths").expect("required clap arg").collect();
   let paths: Vec<PathBuf> = if matches.is_present("dir_mode") {
-    find_files(matches.values_of("paths").expect("required argument"), "msbt")?
+    find_files(input_paths.iter().map(Clone::clone), "msbt")?
   } else {
-    matches.values_of("paths").expect("required argument").map(PathBuf::from).collect()
+    input_paths.iter().map(PathBuf::from).collect()
   };
+  let output_path = matches.value_of("output").map(Path::new);
 
   paths
     .into_par_iter()
@@ -73,13 +75,21 @@ pub fn export(matches: &ArgMatches) -> Result<()> {
         }),
       };
 
-      let lossy_path = path.to_string_lossy();
-      let base = match lossy_path.rsplitn(2, '.').nth(1) {
-        Some(b) => b,
-        None => failure::bail!("invalid path (no extension): {}", path.to_string_lossy()),
+      let dest = match output_path {
+        Some(output) => {
+          let stripped_path = match input_paths.iter().flat_map(|input| path.strip_prefix(input)).next() {
+            Some(s) => s,
+            None => failure::bail!("no input path works as a prefix on {}", path.to_string_lossy()),
+          };
+          output.join(stripped_path).with_extension("msyt")
+        },
+        None => path.with_extension("msyt"),
       };
+      if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent)?;
+      }
       serde_yaml::to_writer(
-        BufWriter::new(File::create(format!("{}.msyt", base))?),
+        BufWriter::new(File::create(dest)?),
         &msyt,
       ).map_err(|e| e.context("could not write yaml to file"))?;
 
