@@ -6,7 +6,7 @@ use rayon::prelude::*;
 
 use std::{
   fs::File,
-  io::{BufReader, BufWriter},
+  io::{BufReader, BufWriter, Write},
   path::{Path, PathBuf},
 };
 
@@ -88,10 +88,13 @@ pub fn export(matches: &ArgMatches) -> Result<()> {
       if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent)?;
       }
+      let mut writer = BufWriter::new(File::create(dest)?);
       serde_yaml::to_writer(
-        BufWriter::new(File::create(dest)?),
+        &mut writer,
         &msyt,
       ).map_err(|e| e.context("could not write yaml to file"))?;
+      // add final newline
+      writer.write_all(b"\n").map_err(|e| e.context("could not write final newline to file"))?;
 
       Ok(())
     })
