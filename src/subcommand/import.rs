@@ -5,7 +5,7 @@ use rayon::prelude::*;
 use std::{
   fs::File,
   io::{BufReader, BufWriter},
-  path::PathBuf,
+  path::{Path, PathBuf},
 };
 
 use crate::{
@@ -15,11 +15,13 @@ use crate::{
 };
 
 pub fn import(matches: &ArgMatches) -> Result<()> {
+  let input_paths: Vec<&str> = matches.values_of("paths").expect("required clap arg").collect();
   let paths: Vec<PathBuf> = if matches.is_present("dir_mode") {
-    find_files(matches.values_of("paths").expect("required argument"), "msyt")?
+    find_files(input_paths.iter().map(Clone::clone), "msyt")?
   } else {
-    matches.values_of("paths").expect("required argument").map(PathBuf::from).collect()
+    input_paths.iter().map(PathBuf::from).collect()
   };
+  let output_path = matches.value_of("output").map(Path::new);
 
   let extension = matches.value_of("extension").expect("clap arg with default");
   let backup = !matches.is_present("no-backup");
@@ -46,7 +48,19 @@ pub fn import(matches: &ArgMatches) -> Result<()> {
         }
       }
 
-      let dest_path = path.with_extension(extension);
+      let dest_path = match output_path {
+        Some(output) => {
+          let stripped_path = match input_paths.iter().flat_map(|input| path.strip_prefix(input)).next() {
+            Some(s) => s,
+            None => failure::bail!("no input path works as a prefix on {}", path.to_string_lossy()),
+          };
+          output.join(stripped_path).with_extension(extension)
+        },
+        None => path.with_extension(extension),
+      };
+      if let Some(parent) = dest_path.parent() {
+        std::fs::create_dir_all(parent)?;
+      }
 
       if backup && dest_path.exists() {
         let backup_path = dest_path.with_extension(format!("{}.bak", extension));

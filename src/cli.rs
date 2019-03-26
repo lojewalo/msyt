@@ -35,6 +35,12 @@ pub fn app<'a, 'b: 'a>() -> App<'a, 'b> {
         .takes_value(true)
         .default_value("msbt"))
 
+      .arg(Arg::with_name("output")
+        .help("The directory to place output files in. If not specified, output files will be placed next to input files.")
+        .short("o")
+        .long("output")
+        .takes_value(true))
+
       .arg(Arg::with_name("paths")
         .help("MSYT paths to import (MSBT files should be adjacent)")
         .required(true)
