@@ -1,6 +1,6 @@
 use crate::{
   Result,
-  botw::{Control, MainControl, PauseLength, RawControl},
+  botw::{Control, MainControl, PauseKind, PauseLength, RawControl},
 };
 
 use byteordered::Endian;
@@ -35,7 +35,7 @@ impl MainControl for Control5 {
       if let Some(length) = PauseLength::from_u16(field_1) {
         return Ok((
           c.position() as usize,
-          Control::Pause { length }
+          Control::Pause(PauseKind::Duration(length)),
         ));
       }
     }

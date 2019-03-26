@@ -101,7 +101,7 @@ pub enum Control {
 
   SetColour { colour: Colour },
   ResetColour,
-  Pause { length: PauseLength },
+  Pause(PauseKind),
   Icon { icon: Icon },
   Variable {
     variable_kind: u16,
@@ -160,10 +160,14 @@ impl Control {
         field_1: 2,
         field_2: 65535,
       })),
-      Control::Pause { length } => Box::new(self::five::Control5 {
+      Control::Pause(PauseKind::Duration(length)) => Box::new(self::five::Control5 {
         field_1: length.as_u16(),
         field_2: 0,
       }),
+      Control::Pause(PauseKind::Frames(frames)) => Box::new(self::one::Control1::Zero(self::one::zero::Control1_0 {
+        field_1: 4,
+        field_2: frames,
+      })),
       Control::Icon { icon } => Box::new(self::one::Control1::Seven(self::one::seven::Control1_7 {
         field_1: 2,
         field_2: [
@@ -301,6 +305,13 @@ impl Colour {
       Colour::LightGrey => 6,
     }
   }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum PauseKind {
+  Frames(u32),
+  Duration(PauseLength),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
