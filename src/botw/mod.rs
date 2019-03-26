@@ -114,6 +114,7 @@ pub enum Control {
     unknown: u16,
   },
   Sound { unknown: Vec<u8> },
+  Sound2 { unknown: Vec<u8> },
   Animation { name: String },
   TextSize { percent: u16 },
   AutoAdvance { frames: u32 },
@@ -205,6 +206,9 @@ impl Control {
         field_1: 1,
         field_2: unknown.clone(),
       }),
+      Control::Sound2 { ref unknown } => Box::new(self::four::Control4::One(self::four::one::Control4_1 {
+        field_1: unknown.clone(),
+      })),
       Control::Animation { ref name } => Box::new(self::four::Control4::Two(self::four::two::Control4_2 {
         field_1: name.len() as u16 * 2 + 2,
         string: name.clone(),

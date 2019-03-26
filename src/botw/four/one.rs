@@ -1,8 +1,7 @@
 use crate::{
   Result,
-  botw::{Control, RawControl, SubControl},
+  botw::{Control, SubControl},
 };
-use super::Control4;
 
 use byteordered::Endian;
 
@@ -16,7 +15,7 @@ use std::io::{Cursor, Read, Write};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Control4_1 {
-  field_1: Vec<u8>,
+  pub field_1: Vec<u8>,
 }
 
 impl SubControl for Control4_1 {
@@ -30,9 +29,9 @@ impl SubControl for Control4_1 {
     let mut field_1 = vec![0; field_1_len as usize];
     reader.read_exact(&mut field_1).with_context(|_| "could not read field_1")?;
 
-    Ok(Control::Raw(RawControl::Four(Control4::One(Control4_1 {
-      field_1,
-    }))))
+    Ok(Control::Sound2 {
+      unknown: field_1,
+    })
   }
 
   fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
