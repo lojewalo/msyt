@@ -1,3 +1,5 @@
+#![warn(bare_trait_objects)]
+
 mod botw;
 mod cli;
 mod model;
