@@ -12,6 +12,13 @@ use std::collections::BTreeMap;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Msyt {
+  #[serde(flatten)]
+  pub msbt: MsbtInfo,
+  pub entries: IndexMap<String, Entry>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct MsbtInfo {
   pub group_count: u32,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub atr1_unknown: Option<u32>,
@@ -21,7 +28,6 @@ pub struct Msyt {
   pub tsy1: Option<Vec<u8>>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub nli1: Option<Nli1>,
-  pub entries: IndexMap<String, Entry>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

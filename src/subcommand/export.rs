@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
   Result,
-  model::{Msyt, Entry},
+  model::{MsbtInfo, Msyt, Entry},
   subcommand::find_files,
 };
 
@@ -66,14 +66,16 @@ pub fn export(matches: &ArgMatches) -> Result<()> {
 
       let msyt = Msyt {
         entries,
-        group_count: lbl1.group_count(),
-        atr1_unknown: msbt.atr1().map(Atr1::unknown_1),
-        ato1: msbt.ato1().map(|a| a.unknown_bytes().to_vec()),
-        tsy1: msbt.tsy1().map(|a| a.unknown_bytes().to_vec()),
-        nli1: msbt.nli1().map(|a| crate::model::Nli1 {
-          id_count: a.id_count(),
-          global_ids: a.global_ids().clone(),
-        }),
+        msbt: MsbtInfo {
+          group_count: lbl1.group_count(),
+          atr1_unknown: msbt.atr1().map(Atr1::unknown_1),
+          ato1: msbt.ato1().map(|a| a.unknown_bytes().to_vec()),
+          tsy1: msbt.tsy1().map(|a| a.unknown_bytes().to_vec()),
+          nli1: msbt.nli1().map(|a| crate::model::Nli1 {
+            id_count: a.id_count(),
+            global_ids: a.global_ids().clone(),
+          }),
+        },
       };
 
       let dest = match output_path {

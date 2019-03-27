@@ -54,11 +54,11 @@ pub fn create(matches: &ArgMatches) -> Result<()> {
       let msyt: Msyt = serde_yaml::from_reader(BufReader::new(msyt_file))
         .with_context(|_| format!("could not read valid yaml from {}", path.to_string_lossy()))?;
 
-      let mut builder = MsbtBuilder::new(endianness, encoding, Some(msyt.group_count));
-      if let Some(unknown_bytes) = msyt.ato1 {
+      let mut builder = MsbtBuilder::new(endianness, encoding, Some(msyt.msbt.group_count));
+      if let Some(unknown_bytes) = msyt.msbt.ato1 {
         builder = builder.ato1(msbt::section::Ato1::new_unlinked(unknown_bytes));
       }
-      if let Some(unknown_1) = msyt.atr1_unknown {
+      if let Some(unknown_1) = msyt.msbt.atr1_unknown {
         // ATR1 should have exactly the same amount of entries as TXT2. In the BotW files, sometimes
         // an ATR1 section is specified to have that amount but the section is actually empty. For
         // msyt's purposes, if the msyt does not contain the same amount of attributes as it does
@@ -77,10 +77,10 @@ pub fn create(matches: &ArgMatches) -> Result<()> {
         let strings = strings.unwrap_or_default();
         builder = builder.atr1(msbt::section::Atr1::new_unlinked(atr_len as u32, unknown_1, strings));
       }
-      if let Some(unknown_bytes) = msyt.tsy1 {
+      if let Some(unknown_bytes) = msyt.msbt.tsy1 {
         builder = builder.tsy1(msbt::section::Tsy1::new_unlinked(unknown_bytes));
       }
-      if let Some(nli1) = msyt.nli1 {
+      if let Some(nli1) = msyt.msbt.nli1 {
         builder = builder.nli1(msbt::section::Nli1::new_unlinked(nli1.id_count, nli1.global_ids));
       }
       for (label, entry) in msyt.entries.into_iter() {
