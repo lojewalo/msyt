@@ -1,5 +1,5 @@
 use clap::ArgMatches;
-use failure::Fail;
+use failure::ResultExt;
 use indexmap::IndexMap;
 use msbt::{Msbt, section::Atr1};
 use rayon::prelude::*;
@@ -28,8 +28,9 @@ pub fn export(matches: &ArgMatches) -> Result<()> {
   paths
     .into_par_iter()
     .map(|path| {
-      let msbt_file = File::open(&path)?;
-      let msbt = Msbt::from_reader(BufReader::new(msbt_file))?;
+      let msbt_file = File::open(&path).with_context(|_| format!("could not open {}", path.to_string_lossy()))?;
+      let msbt = Msbt::from_reader(BufReader::new(msbt_file))
+        .with_context(|_| format!("could not read msbt file at {}", path.to_string_lossy()))?;
 
       let lbl1 = match msbt.lbl1() {
         Some(lbl) => lbl,
@@ -48,7 +49,7 @@ pub fn export(matches: &ArgMatches) -> Result<()> {
             label.name(),
           ))?;
         let mut parts = crate::botw::parse_controls(msbt.header(), raw_value)
-          .map_err(|e| e.context(format!("could not parse control sequences in {}", path.to_string_lossy())))?;
+          .with_context(|_| format!("could not parse control sequences in {}", path.to_string_lossy()))?;
         all_content.append(&mut parts);
         let entry = Entry {
           attributes: msbt.atr1()
@@ -86,15 +87,16 @@ pub fn export(matches: &ArgMatches) -> Result<()> {
         None => path.with_extension("msyt"),
       };
       if let Some(parent) = dest.parent() {
-        std::fs::create_dir_all(parent)?;
+        std::fs::create_dir_all(parent)
+          .with_context(|_| format!("could not create parent directories for {}", parent.to_string_lossy()))?;
       }
       let mut writer = BufWriter::new(File::create(dest)?);
       serde_yaml::to_writer(
         &mut writer,
         &msyt,
-      ).map_err(|e| e.context("could not write yaml to file"))?;
+      ).with_context(|_| "could not write yaml to file")?;
       // add final newline
-      writer.write_all(b"\n").map_err(|e| e.context("could not write final newline to file"))?;
+      writer.write_all(b"\n").with_context(|_| "could not write final newline to file")?;
 
       Ok(())
     })

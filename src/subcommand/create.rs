@@ -1,5 +1,6 @@
 use byteordered::Endianness;
 use clap::ArgMatches;
+use failure::ResultExt;
 use msbt::{
   Encoding,
   builder::MsbtBuilder,
@@ -40,7 +41,8 @@ pub fn create(matches: &ArgMatches) -> Result<()> {
   let backup = !matches.is_present("no-backup");
   let output = Path::new(matches.value_of("output").expect("required clap arg"));
   if !output.exists() {
-    std::fs::create_dir_all(&output)?;
+    std::fs::create_dir_all(&output)
+      .with_context(|_| format!("could not create dir {}", output.to_string_lossy()))?;
   } else if !output.is_dir() {
     failure::bail!("output directory is not a directory");
   }
@@ -48,8 +50,9 @@ pub fn create(matches: &ArgMatches) -> Result<()> {
   paths
     .into_par_iter()
     .map(|path| {
-      let msyt_file = File::open(&path)?;
-      let msyt: Msyt = serde_yaml::from_reader(BufReader::new(msyt_file))?;
+      let msyt_file = File::open(&path).with_context(|_| format!("could not open file {}", path.to_string_lossy()))?;
+      let msyt: Msyt = serde_yaml::from_reader(BufReader::new(msyt_file))
+        .with_context(|_| format!("could not read valid yaml from {}", path.to_string_lossy()))?;
 
       let mut builder = MsbtBuilder::new(endianness, encoding, Some(msyt.group_count));
       if let Some(unknown_bytes) = msyt.ato1 {
@@ -92,16 +95,20 @@ pub fn create(matches: &ArgMatches) -> Result<()> {
       };
       let dest_path = output.join(stripped_path).with_extension(extension);
       if let Some(parent) = dest_path.parent() {
-        std::fs::create_dir_all(parent)?;
+        std::fs::create_dir_all(parent)
+          .with_context(|_| format!("could not create directory {}", parent.to_string_lossy()))?;
       }
 
       if backup && dest_path.exists() {
         let backup_path = dest_path.with_extension(format!("{}.bak", extension));
-        std::fs::rename(&dest_path, backup_path)?;
+        std::fs::rename(&dest_path, &backup_path)
+          .with_context(|_| format!("could not backup {} to {}", dest_path.to_string_lossy(), backup_path.to_string_lossy()))?;
       }
 
-      let new_msbt = File::create(&dest_path)?;
-      msbt.write_to(BufWriter::new(new_msbt))?;
+      let new_msbt = File::create(&dest_path)
+        .with_context(|_| format!("could not create file {}", dest_path.to_string_lossy()))?;
+      msbt.write_to(BufWriter::new(new_msbt))
+        .with_context(|_| format!("could not write msbt to {}", dest_path.to_string_lossy()))?;
 
       Ok(())
     })
