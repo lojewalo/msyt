@@ -121,8 +121,8 @@ pub enum Control {
 }
 
 enum MainControlRef<'a> {
-  Borrowed(&'a MainControl),
-  Owned(Box<MainControl>),
+  Borrowed(&'a dyn MainControl),
+  Owned(Box<dyn MainControl>),
 }
 
 impl<'a> MainControl for MainControlRef<'a> {
@@ -139,7 +139,7 @@ impl<'a> MainControl for MainControlRef<'a> {
     unimplemented!()
   }
 
-  fn write(&self, header: &Header, writer: &mut Write) -> Result<()> {
+  fn write(&self, header: &Header, writer: &mut dyn Write) -> Result<()> {
     match *self {
       MainControlRef::Borrowed(ref b) => b.write(header, writer),
       MainControlRef::Owned(ref b) => b.write(header, writer),
@@ -149,7 +149,7 @@ impl<'a> MainControl for MainControlRef<'a> {
 
 impl Control {
   fn as_main_control(&self) -> Result<MainControlRef> {
-    let b: Box<MainControl> = match *self {
+    let b: Box<dyn MainControl> = match *self {
       Control::Raw(ref raw) => return Ok(MainControlRef::Borrowed(raw.as_main_control())),
 
       Control::SetColour { colour } => Box::new(self::zero::Control0::Three(self::zero::three::Control0_3 {
@@ -230,7 +230,7 @@ impl Control {
     Ok(MainControlRef::Owned(b))
   }
 
-  pub fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+  pub fn write(&self, header: &Header, mut writer: &mut dyn Write) -> Result<()> {
     header.endianness().write_u16(&mut writer, 0x0e).with_context(|_| "could not write control marker")?;
     let control = self.as_main_control()?;
     header.endianness().write_u16(&mut writer, control.marker())
@@ -254,15 +254,15 @@ pub enum RawControl {
 }
 
 impl RawControl {
-  fn as_main_control(&self) -> &MainControl {
+  fn as_main_control(&self) -> &dyn MainControl {
     match *self {
-      RawControl::Zero(ref c) => c as &MainControl,
-      RawControl::One(ref c) => c as &MainControl,
-      RawControl::Two(ref c) => c as &MainControl,
-      RawControl::Three(ref c) => c as &MainControl,
-      RawControl::Four(ref c) => c as &MainControl,
-      RawControl::Five(ref c) => c as &MainControl,
-      RawControl::TwoHundredOne(ref c) => c as &MainControl,
+      RawControl::Zero(ref c) => c as &dyn MainControl,
+      RawControl::One(ref c) => c as &dyn MainControl,
+      RawControl::Two(ref c) => c as &dyn MainControl,
+      RawControl::Three(ref c) => c as &dyn MainControl,
+      RawControl::Four(ref c) => c as &dyn MainControl,
+      RawControl::Five(ref c) => c as &dyn MainControl,
+      RawControl::TwoHundredOne(ref c) => c as &dyn MainControl,
     }
   }
 }
@@ -447,7 +447,7 @@ pub(crate) trait MainControl {
   fn parse(header: &Header, buf: &[u8]) -> Result<(usize, Control)>
     where Self: Sized;
 
-  fn write(&self, header: &Header, writer: &mut Write) -> Result<()>;
+  fn write(&self, header: &Header, writer: &mut dyn Write) -> Result<()>;
 }
 
 pub(crate) trait SubControl {
@@ -456,5 +456,5 @@ pub(crate) trait SubControl {
   fn parse(header: &Header, reader: &mut Cursor<&[u8]>) -> Result<Control>
     where Self: Sized;
 
-  fn write(&self, header: &Header, writer: &mut Write) -> Result<()>;
+  fn write(&self, header: &Header, writer: &mut dyn Write) -> Result<()>;
 }

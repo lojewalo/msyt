@@ -62,13 +62,13 @@ impl MainControl for Control0 {
     ))
   }
 
-  fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+  fn write(&self, header: &Header, mut writer: &mut dyn Write) -> Result<()> {
     let sub = match *self {
-      Control0::Zero(ref c) => c as &SubControl,
-      Control0::One(ref c) => c as &SubControl,
-      Control0::Two(ref c) => c as &SubControl,
-      Control0::Three(ref c) => c as &SubControl,
-      Control0::Four(ref c) => c as &SubControl,
+      Control0::Zero(ref c) => c as &dyn SubControl,
+      Control0::One(ref c) => c as &dyn SubControl,
+      Control0::Two(ref c) => c as &dyn SubControl,
+      Control0::Three(ref c) => c as &dyn SubControl,
+      Control0::Four(ref c) => c as &dyn SubControl,
     };
 
     header.endianness().write_u16(&mut writer, sub.marker())

@@ -45,7 +45,7 @@ impl SubControl for Control1_6 {
     })
   }
 
-  fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+  fn write(&self, header: &Header, mut writer: &mut dyn Write) -> Result<()> {
     header.endianness().write_u16(&mut writer, self.field_1).with_context(|_| "could not write field_1")?;
     header.endianness().write_u16(&mut writer, self.field_2).with_context(|_| "could not write field_2")?;
     header.endianness().write_u16(&mut writer, self.field_3).with_context(|_| "could not write field_3")?;

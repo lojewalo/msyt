@@ -45,7 +45,7 @@ impl Control2Variable {
     })
   }
 
-  pub(crate) fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+  pub(crate) fn write(&self, header: &Header, mut writer: &mut dyn Write) -> Result<()> {
     header.endianness().write_u16(&mut writer, self.field_1).with_context(|_| "could not write field_1")?;
 
     let str_bytes = match header.encoding() {

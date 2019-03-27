@@ -63,7 +63,7 @@ impl SubControl for Control1_8 {
     }))))
   }
 
-  fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+  fn write(&self, header: &Header, mut writer: &mut dyn Write) -> Result<()> {
     let len = self.unknown_1.len() * UNKNOWN.len()
       + self.field_1.len() * 2
       + self.field_2.len();

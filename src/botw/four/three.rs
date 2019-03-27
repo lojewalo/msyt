@@ -28,7 +28,7 @@ impl SubControl for Control4_3 {
     }))))
   }
 
-  fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+  fn write(&self, header: &Header, mut writer: &mut dyn Write) -> Result<()> {
     header.endianness().write_u16(&mut writer, self.field_1)?;
 
     Ok(())

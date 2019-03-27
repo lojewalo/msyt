@@ -110,7 +110,7 @@ impl SubControl for Control1_9 {
     }))))
   }
 
-  fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+  fn write(&self, header: &Header, mut writer: &mut dyn Write) -> Result<()> {
     let payload_length: usize = self.unknown_1.map(|x| x.len()).unwrap_or(0)
       + self.strings.iter().map(|s| std::mem::size_of_val(&s.field_1) + std::mem::size_of::<u16>() + match header.encoding() {
         Encoding::Utf16 => s.string.encode_utf16().count() * std::mem::size_of::<u16>(),

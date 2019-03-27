@@ -66,7 +66,7 @@ impl MainControl for Control2 {
     ))
   }
 
-  fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+  fn write(&self, header: &Header, mut writer: &mut dyn Write) -> Result<()> {
     match *self {
       Control2::Variable(marker, ref control) => {
         header.endianness().write_u16(&mut writer, marker)

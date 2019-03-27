@@ -57,12 +57,12 @@ impl MainControl for Control4 {
     ))
   }
 
-  fn write(&self, header: &Header, mut writer: &mut Write) -> Result<()> {
+  fn write(&self, header: &Header, mut writer: &mut dyn Write) -> Result<()> {
     let sub = match *self {
-      Control4::Zero(ref c) => c as &SubControl,
-      Control4::One(ref c) => c as &SubControl,
-      Control4::Two(ref c) => c as &SubControl,
-      Control4::Three(ref c) => c as &SubControl,
+      Control4::Zero(ref c) => c as &dyn SubControl,
+      Control4::One(ref c) => c as &dyn SubControl,
+      Control4::Two(ref c) => c as &dyn SubControl,
+      Control4::Three(ref c) => c as &dyn SubControl,
     };
     header.endianness().write_u16(&mut writer, sub.marker())
       .with_context(|_| format!("could not write control subtype marker {}", sub.marker()))?;
