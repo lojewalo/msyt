@@ -113,6 +113,9 @@ pub enum Control {
     cancel_index: u8,
     unknown: u16,
   },
+  SingleChoice {
+    label: u16,
+  },
   Sound { unknown: Vec<u8> },
   Sound2 { unknown: Vec<u8> },
   Animation { name: String },
@@ -206,6 +209,11 @@ impl Control {
           _ => failure::bail!("invalid choice: only 2 to 4 options allowed but got {}", choice_labels.len()),
         }
       },
+      Control::SingleChoice { label } => Box::new(self::one::Control1::Ten(self::one::ten::Control1_10 {
+        field_1: 4,
+        field_2: label,
+        field_3: [1, 205],
+      })),
       Control::Sound { ref unknown } => Box::new(self::three::Control3 {
         field_1: 1,
         field_2: unknown.clone(),

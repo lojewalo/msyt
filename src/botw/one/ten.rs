@@ -16,9 +16,9 @@ use std::io::{Cursor, Read, Write};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Control1_10 {
-  field_1: u16,
-  field_2: u16,
-  field_3: [u8; 2],
+  pub field_1: u16,
+  pub field_2: u16,
+  pub field_3: [u8; 2],
 }
 
 impl SubControl for Control1_10 {
@@ -32,6 +32,12 @@ impl SubControl for Control1_10 {
 
     let mut field_3 = [0; 2];
     reader.read_exact(&mut field_3[..]).with_context(|_| "could not read field_3")?;
+
+    if field_1 == 4 && field_3 == [1, 205] {
+      return Ok(Control::SingleChoice {
+        label: field_2,
+      });
+    }
 
     Ok(Control::Raw(RawControl::One(Control1::Ten(Control1_10 {
       field_1,
