@@ -24,8 +24,8 @@ use self::{
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Control2 {
-  Variable(u16, Control2Variable),
   OneField(u16, Control2OneField),
+  Variable(u16, Control2Variable),
 }
 
 impl MainControl for Control2 {
@@ -44,7 +44,7 @@ impl MainControl for Control2 {
       8 => Control2::OneField(kind, Control2OneField::parse(header, &mut c).with_context(|_| "could not parse control subtype 8")?),
       10 => Control2::OneField(kind, Control2OneField::parse(header, &mut c).with_context(|_| "could not parse control subtype 10")?),
       13 => Control2::OneField(kind, Control2OneField::parse(header, &mut c).with_context(|_| "could not parse control subtype 13")?),
-      1 | 2 | 9 | 11 | 14 | 15 | 16 | 17 | 18 | 19 => {
+      1 | 2 | 9 | 11 | 12 | 14 | 15 | 16 | 17 | 18 | 19 => {
         let v = Control2Variable::parse(header, &mut c).with_context(|_| "could not parse control subtype 18")?;
         if v.field_3 == 0 {
           return Ok((
@@ -68,14 +68,14 @@ impl MainControl for Control2 {
 
   fn write(&self, header: &Header, mut writer: &mut dyn Write) -> Result<()> {
     match *self {
-      Control2::Variable(marker, ref control) => {
+      Control2::OneField(marker, ref control) => {
         header.endianness().write_u16(&mut writer, marker)
           .with_context(|_| format!("could not write marker for subtype {}", marker))?;
         control.write(header, &mut writer)
           .with_context(|_| format!("could not write subtype {}", marker))
           .map_err(Into::into)
       },
-      Control2::OneField(marker, ref control) => {
+      Control2::Variable(marker, ref control) => {
         header.endianness().write_u16(&mut writer, marker)
           .with_context(|_| format!("could not write marker for subtype {}", marker))?;
         control.write(header, &mut writer)
