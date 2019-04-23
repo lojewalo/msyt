@@ -121,6 +121,36 @@ pub enum Control {
   Animation { name: String },
   TextSize { percent: u16 },
   AutoAdvance { frames: u32 },
+  Localisation {
+    localisation_kind: Localisation,
+    options: Vec<String>,
+  },
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum Localisation {
+  Gender,
+  Plural,
+  Unknown(u16),
+}
+
+impl Localisation {
+  pub fn as_u16(self) -> u16 {
+    match self {
+      Localisation::Gender => 5,
+      Localisation::Plural => 6,
+      Localisation::Unknown(x) => x,
+    }
+  }
+
+  pub fn from_u16(u: u16) -> Self {
+    match u {
+      5 => Localisation::Gender,
+      6 => Localisation::Plural,
+      x => Localisation::Unknown(x),
+    }
+  }
 }
 
 enum MainControlRef<'a> {
@@ -232,6 +262,9 @@ impl Control {
       Control::AutoAdvance { frames } => Box::new(self::one::Control1::Three(self::one::three::Control1_3 {
         field_1: 4,
         field_2: frames,
+      })),
+      Control::Localisation { localisation_kind, ref options } => Box::new(self::two_hundred_one::Control201::Localisation(localisation_kind, self::two_hundred_one::localisation::Control201Localisation {
+        strings: options.clone(),
       })),
     };
 
