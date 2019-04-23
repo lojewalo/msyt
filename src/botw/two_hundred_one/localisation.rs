@@ -21,11 +21,7 @@ impl Control201Localisation {
     let mut strings = Vec::with_capacity(2);
 
     let mut total = 0;
-    loop {
-      if total == len {
-        break;
-      }
-
+    while total != len {
       let str_len = match header.encoding() {
         Encoding::Utf16 => header.endianness().read_u16(&mut reader).with_context(|_| "could not read str_len")? as usize,
         Encoding::Utf8 => {
