@@ -2,8 +2,8 @@ image: registry.gitlab.com/jkcclemens/msyt/build:latest
 
 stages:
   - build
-  # - test
   - release
+  - test
 
 build_linux:
   stage: build
@@ -43,3 +43,7 @@ build_linux_musl_release:
   artifacts:
     paths:
       - target/x86_64-unknown-linux-musl/release/msyt
+
+test:
+  stage: test
+  script: ./test.sh
