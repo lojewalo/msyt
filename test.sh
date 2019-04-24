@@ -45,6 +45,10 @@ main() {
   # move to temp dir
   cd "$tmp" || exit
 
+  install_package wget wget
+  install_package parallel parallel
+  install_package xz xz-utils
+
   if [ ! -x "$(command -v func_equiv)" ]; then
     echo "installing func_equiv"
     wget https://kyleclemens.com/assets/msyt/func_equiv.xz
@@ -52,9 +56,6 @@ main() {
     chmod +x func_equiv
     mv func_equiv /usr/local/bin/
   fi
-
-  install_package wget wget
-  install_package parallel parallel
 
   echo "downloading vanilla msbts"
 
