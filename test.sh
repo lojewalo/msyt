@@ -6,6 +6,16 @@ set -e
 # enable globstar for bash
 shopt -s globstar
 
+install_package() {
+  if [ ! -x "$(command -v "$1")" ] && [ "$UID" -eq 0 ] && [ -x "$(command -v apt-get)" ]; then
+    echo "installing gnu parallel"
+    apt-get install --no-install-recommends -qqq -y "$2"
+  elif [ ! -x "$(command -v "$1")" ] && [ "$UID" -ne 0 ]; then
+    echo "missing gnu parallel. exiting."
+    exit 1
+  fi
+}
+
 check_diff() {
   set +e
   name=$(echo "$1" | cut -d'/' -f2-)
@@ -43,13 +53,8 @@ main() {
     mv func_equiv /usr/local/bin/
   fi
 
-  if [ ! -x "$(command -v parallel)" ] && [ "$UID" -eq 0 ] && [ -x "$(command -v apt-get)" ]; then
-    echo "installing gnu parallel"
-    apt-get install --no-install-recommends -qqq -y parallel
-  elif [ ! -x "$(command -v parallel)" ] && [ "$UID" -ne 0 ]; then
-    echo "missing gnu parallel. exiting."
-    exit 1
-  fi
+  install_package wget wget
+  install_package parallel parallel
 
   echo "downloading vanilla msbts"
 
