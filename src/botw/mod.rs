@@ -125,6 +125,33 @@ pub enum Control {
     localisation_kind: Localisation,
     options: Vec<String>,
   },
+  Font { font_kind: Font },
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum Font {
+  Normal,
+  Hylian,
+}
+
+impl Font {
+  pub fn as_u16(self) -> u16 {
+    match self {
+      Font::Normal => 0xFFFF,
+      Font::Hylian => 0x0000,
+    }
+  }
+
+  pub fn from_u16(u: u16) -> Option<Self> {
+    let f = match u {
+      0xFFFF => Font::Normal,
+      0x0000 => Font::Hylian,
+      _ => return None,
+    };
+
+    Some(f)
+  }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
@@ -265,6 +292,10 @@ impl Control {
       })),
       Control::Localisation { localisation_kind, ref options } => Box::new(self::two_hundred_one::Control201::Localisation(localisation_kind, self::two_hundred_one::localisation::Control201Localisation {
         strings: options.clone(),
+      })),
+      Control::Font { font_kind } => Box::new(self::zero::Control0::One(self::zero::one::Control0_1 {
+        field_1: 2,
+        field_2: font_kind.as_u16(),
       })),
     };
 
